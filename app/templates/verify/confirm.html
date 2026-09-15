@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--full{% endblock %}
+{% block nav %}{% endblock %}
+
+{% set f = record.extracted or {} %}
+{% set c = record.field_confidence or {} %}
+
+{% macro conf(key) -%}
+{%- set v = c.get(key) or 0 -%}
+<span class="confidence {% if v >= 0.8 %}confidence--high{% elif v < 0.5 %}confidence--low{% endif %}">
+  {{ (v * 100)|round|int }}% sure
+</span>
+{%- endmacro %}
+
+{% block content %}
+<div style="max-width:720px;margin:0 auto">
+
+  <div class="page-head">
+    <div>
+      <h1>Check what we read</h1>
+      <p class="lede">
+        These details come straight off your card and become your profile. You cannot edit
+        them later, so tell us now if anything is wrong.
+      </p>
+    </div>
+  </div>
+
+  {% if request.query_params.get('noted') %}
+  <div class="flash flash-ok">Thanks — a reviewer will look at what you flagged.</div>
+  {% endif %}
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>From your ID card</h2>
+      <span class="right confidence {% if record.confidence >= 0.8 %}confidence--high{% elif record.confidence < 0.6 %}confidence--low{% endif %}">
+        overall {{ (record.confidence * 100)|round|int }}%
+      </span>
+    </div>
+    <div class="panel-body">
+      <dl class="kv">
+        <dt>Name</dt><dd>{{ f.get('full_name') or '—' }} {{ conf('full_name') }}</dd>
+        <dt>Roll number</dt><dd class="mono">{{ f.get('roll_number') or '—' }} {{ conf('roll_number') }}</dd>
+        <dt>Course</dt><dd>{{ f.get('course') or '—' }} {{ conf('course') }}</dd>
+        <dt>Department</dt><dd>{{ f.get('department') or '—' }} {{ conf('department') }}</dd>
+        <dt>Batch</dt><dd>{{ f.get('batch') or '—' }} {{ conf('batch') }}</dd>
+        <dt>Valid until</dt><dd>{{ f.get('expiry') or 'not printed' }} {{ conf('expiry') }}</dd>
+      </dl>
+
+      {% if record.checks and record.checks.get('soft_fail') %}
+      <div class="flash flash-warn" style="margin-top:1rem">
+        A reviewer will double-check this one by hand, because:
+        <ul>
+          {% for reason in record.checks.get('soft_fail') %}
+          <li>{{ {'issuer': 'the college name was hard to read',
+                  'low_confidence': 'parts of the card were unclear',
+                  'blurry': 'the photo was slightly blurry',
+                  'too_dark': 'the photo was dark',
+                  'too_bright': 'the photo was washed out',
+                  'expired': 'the card may have expired'}.get(reason, reason) }}</li>
+          {% endfor %}
+        </ul>
+        That is normal and does not mean anything is wrong.
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="panel-foot">
+      <details>
+        <summary>Something here is wrong</summary>
+        <form method="post" action="/verify/dispute" style="margin-top:0.7rem">
+          <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+          <div class="field">
+            <label for="note">What did we get wrong?</label>
+            <textarea id="note" name="note" rows="3" maxlength="500"
+                      placeholder="My roll number is 21BSC1042, not 218SC1042."></textarea>
+            <div class="hint">A reviewer corrects it by hand — you cannot edit these fields yourself.</div>
+          </div>
+          <button type="submit" class="btn btn--ghost btn--sm">Flag for review</button>
+        </form>
+      </details>
+    </div>
+  </div>
+
+  <form class="panel" method="post" action="/verify/selfie" enctype="multipart/form-data"
+        style="margin-top:1rem" data-capture="selfie">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <div class="panel-head"><h2>Now a selfie</h2></div>
+
+    <div class="panel-body">
+      <p class="soft measure">
+        A reviewer compares this with the photo on your card. Look straight at the camera in
+        reasonable light — that is the whole check.
+      </p>
+
+      <div class="capture">
+        <div class="capture-frame" hidden>
+          <video playsinline muted></video>
+        </div>
+        <canvas hidden></canvas>
+        <img data-preview hidden alt="The selfie you just took">
+
+        <div class="btn-row" style="justify-content:center;margin-top:0.75rem">
+          <button type="button" class="btn" data-start>Open camera</button>
+          <button type="button" class="btn btn--stamp" data-shoot hidden>Take photo</button>
+          <button type="button" class="btn btn--ghost" data-retry hidden>Retake</button>
+        </div>
+
+        <div data-camera-error class="flash flash-warn" style="margin-top:0.75rem" hidden>
+          We could not open your camera. Upload a photo instead.
+        </div>
+
+        <div data-fallback style="margin-top:0.75rem">
+          <label for="selfie-file">Your photo</label>
+          <input id="selfie-file" type="file" name="selfie" accept="image/*" capture="user">
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-foot">
+      <button type="submit" class="btn" disabled>Send for review</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

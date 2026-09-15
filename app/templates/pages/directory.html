@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Campus directory</h1>
+    <p class="lede">Who is on here, by department and batch.</p>
+  </div>
+</div>
+
+<div class="stat-row panel" style="padding:1rem;margin-bottom:1rem">
+  <div><span class="stat-value">{{ stats.verified_members }}</span><span class="stat-label">verified members</span></div>
+  <div><span class="stat-value">{{ stats.questions }}</span><span class="stat-label">questions asked</span></div>
+  <div><span class="stat-value">{{ stats.answer_rate }}%</span><span class="stat-label">have an answer</span></div>
+</div>
+
+{% for dept, batches in grouped.items() %}
+<div class="panel" style="margin-bottom:1rem">
+  <div class="panel-head"><h2>{{ dept }}</h2></div>
+  <div class="panel-body">
+    <div style="display:flex;flex-wrap:wrap;gap:.5rem">
+      {% for batch, n in batches %}
+      <a class="tag" href="/people?department={{ dept }}{% if batch %}&amp;batch={{ batch }}{% endif %}">
+        {{ batch or 'Unlisted' }} — {{ n }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="panel empty">
+  <h3>Nobody is verified yet</h3>
+  <p>The directory fills in as people complete verification.</p>
+</div>
+{% endfor %}
+{% endblock %}

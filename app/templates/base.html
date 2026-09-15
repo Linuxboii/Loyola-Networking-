@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf" content="{{ csrf_token(request) }}">
+<meta name="robots" content="noindex, nofollow">
+<title>{% block head_title %}{{ title }} · {{ APP_NAME }}{% endblock %}</title>
+<link rel="stylesheet" href="/static/css/app.css">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+
+{% set me = request.state.me|default(none) %}
+{% set unread_count = request.state.unread|default(0) %}
+{% set open_reports = request.state.open_reports|default(0) %}
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a class="wordmark" href="/">Loyola <span>Networking</span></a>
+
+    {% if me and me.tier >= 1 %}
+    <form class="masthead-search" action="/search" method="get" role="search">
+      <input type="search" name="q" value="{{ request.query_params.get('q', '') }}"
+             placeholder="Search people, questions, notes" aria-label="Search">
+    </form>
+    {% endif %}
+
+    <div class="masthead-actions">
+      {% if me %}
+        {% if me.tier >= 1 %}
+        <a class="btn btn--ghost btn--sm" href="/notifications">
+          Alerts{% if unread_count %} <span class="nav-count">{{ unread_count }}</span>{% endif %}
+        </a>
+        {% endif %}
+        <a class="btn btn--ghost btn--sm" href="/u/{{ me.handle }}">{{ me.full_name|initials }}</a>
+      {% else %}
+        <a class="btn btn--ghost btn--sm" href="/login">Sign in</a>
+        <a class="btn btn--sm" href="/signup">Create account</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<div class="{% block shell_class %}shell{% endblock %}">
+
+  {% block nav %}
+  {% if me and me.tier >= 1 %}
+  <nav class="col-nav rail" aria-label="Sections">
+    <div class="nav">
+      <a href="/" {% if request.url.path == '/' %}aria-current="page"{% endif %}>Feed</a>
+      <a href="/qa" {% if request.url.path.startswith('/qa') %}aria-current="page"{% endif %}>Questions</a>
+      <a href="/people" {% if request.url.path.startswith('/people') %}aria-current="page"{% endif %}>People</a>
+      <a href="/groups" {% if request.url.path.startswith('/groups') %}aria-current="page"{% endif %}>Groups</a>
+      <a href="/events" {% if request.url.path.startswith('/events') %}aria-current="page"{% endif %}>Events</a>
+
+      <div class="nav-group">Build</div>
+      <a href="/projects" {% if request.url.path.startswith('/projects') %}aria-current="page"{% endif %}>Project board</a>
+      <a href="/mentors" {% if request.url.path.startswith('/mentors') %}aria-current="page"{% endif %}>Mentors</a>
+      <a href="/opportunities" {% if request.url.path.startswith('/opportunities') %}aria-current="page"{% endif %}>Placements</a>
+
+      <div class="nav-group">Campus</div>
+      <a href="/vault" {% if request.url.path.startswith('/vault') %}aria-current="page"{% endif %}>Resource vault</a>
+      <a href="/study-rooms" {% if request.url.path.startswith('/study-rooms') %}aria-current="page"{% endif %}>Study rooms</a>
+      <a href="/lost-found" {% if request.url.path.startswith('/lost-found') %}aria-current="page"{% endif %}>Lost &amp; found</a>
+
+      {% if me.is_moderator or can(me, 'moderation_queue') %}
+      <div class="nav-group">Moderation</div>
+      <a href="/moderation" {% if request.url.path.startswith('/moderation') %}aria-current="page"{% endif %}>
+        Queue{% if open_reports %} <span class="nav-count">{{ open_reports }}</span>{% endif %}
+      </a>
+      {% endif %}
+      {% if me.is_admin %}
+      <a href="/admin" {% if request.url.path.startswith('/admin') %}aria-current="page"{% endif %}>Admin</a>
+      {% endif %}
+    </div>
+  </nav>
+  {% endif %}
+  {% endblock %}
+
+  <main class="col-main">
+    {% if me and me.tier == 1 %}
+    <div class="flash flash-warn">
+      <strong>Read-only until you finish verifying.</strong>
+      Your provisional access{% if me.tier1_expires_at %} ends {{ me.tier1_expires_at|timeago }}{% endif %}.
+      <a href="/verify">Finish verification</a>
+    </div>
+    {% endif %}
+    {% if me and me.status == 'suspended' %}
+    <div class="flash flash-error">
+      Your account is suspended{% if me.suspended_until %} until {{ me.suspended_until|datefmt }}{% endif %}.
+      You can read, but not post. <a href="/moderation/my-appeals">Appeal</a>
+    </div>
+    {% endif %}
+
+    {% if errors %}
+    <div class="flash flash-error">
+      {% if errors is string %}{{ errors }}{% else %}
+      <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if notice %}<div class="flash flash-ok">{{ notice }}</div>{% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block rail %}{% endblock %}
+</div>
+
+{% if me and me.tier >= 1 %}
+<nav class="mobile-nav" aria-label="Sections">
+  <a href="/" {% if request.url.path == '/' %}aria-current="page"{% endif %}><span class="ico">▤</span>Feed</a>
+  <a href="/qa" {% if request.url.path.startswith('/qa') %}aria-current="page"{% endif %}><span class="ico">?</span>Questions</a>
+  <a href="/search" {% if request.url.path.startswith('/search') %}aria-current="page"{% endif %}><span class="ico">⌕</span>Search</a>
+  <a href="/events" {% if request.url.path.startswith('/events') %}aria-current="page"{% endif %}><span class="ico">▦</span>Events</a>
+  <a href="/u/{{ me.handle }}" {% if request.url.path.startswith('/u/') %}aria-current="page"{% endif %}><span class="ico">◇</span>You</a>
+</nav>
+{% endif %}
+
+<script src="/static/js/app.js" defer></script>
+</body>
+</html>

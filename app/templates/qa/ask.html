@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Ask a question</h1>
+    <p class="lede">
+      Say what you tried and where it broke. A question with detail gets answered; a vague
+      one sits there.
+    </p>
+  </div>
+</div>
+
+{% if duplicates %}
+<div class="flash flash-warn">
+  <strong>These look similar — one of them may already answer it:</strong>
+  <ul>
+    {% for d in duplicates %}
+    <li><a href="/qa/{{ d.id }}">{{ d.title }}</a> — {{ d.answer_count|pluralise('answer') }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<form class="panel" method="post" action="/qa/ask">
+  <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+  <div class="panel-body">
+    <div class="field">
+      <label for="title">Question</label>
+      <input id="title" name="title" type="text" required minlength="10" maxlength="250"
+             value="{{ prefill_title|default('') }}"
+             placeholder="Why does my JDBC connection time out on the lab machines?">
+      <div class="hint">One specific question. <span data-count-for="title"></span></div>
+    </div>
+
+    <div class="field">
+      <label for="body">Details</label>
+      <textarea id="body" name="body" rows="7" required minlength="15"
+                placeholder="What you are trying to do, what you tried, the exact error."></textarea>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="subject">Subject</label>
+        <input id="subject" name="subject" type="text" maxlength="80" placeholder="DBMS">
+      </div>
+      <div class="field">
+        <label for="semester">Semester</label>
+        <input id="semester" name="semester" type="text" maxlength="20" placeholder="IV">
+      </div>
+      <div class="field">
+        <label for="tags">Tags</label>
+        <input id="tags" name="tags" type="text" placeholder="java jdbc lab">
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="check">
+        <input type="checkbox" name="anonymous">
+        <span>
+          Ask anonymously
+          <div class="hint" style="margin-top:.2rem">
+            Your name is hidden from everyone reading it. It is not hidden from the system —
+            moderators can still trace abuse, so this is not a way to be nasty without
+            consequences.
+          </div>
+        </span>
+      </label>
+    </div>
+  </div>
+  <div class="panel-foot btn-row">
+    <button type="submit" class="btn">Post question</button>
+    <a class="btn btn--ghost" href="/qa">Cancel</a>
+  </div>
+</form>
+{% endblock %}

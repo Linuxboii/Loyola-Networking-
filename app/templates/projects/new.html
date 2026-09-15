@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width:620px">
+  <div class="page-head">
+    <div>
+      <h1>Post a project</h1>
+      <p class="lede">A repo, a live link or a demo video earns more than a description alone — a project with something to open is worth more points than one without.</p>
+    </div>
+  </div>
+
+  <form class="panel" method="post" action="/projects/new">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <div class="panel-body">
+      <div class="field">
+        <label for="title">Title</label>
+        <input id="title" name="title" type="text" required minlength="4" maxlength="160">
+      </div>
+      <div class="field">
+        <label for="summary">One line</label>
+        <input id="summary" name="summary" type="text" maxlength="300"
+               placeholder="Attendance tracker that reads the register photo">
+      </div>
+      <div class="field">
+        <label for="description">Details</label>
+        <textarea id="description" name="description" rows="6" maxlength="8000"></textarea>
+      </div>
+
+      <div class="field-row">
+        <div class="field"><label for="repo_url">Repo</label><input id="repo_url" name="repo_url" type="url" placeholder="github.com/..."></div>
+        <div class="field"><label for="demo_url">Live link</label><input id="demo_url" name="demo_url" type="url"></div>
+        <div class="field"><label for="video_url">Demo video</label><input id="video_url" name="video_url" type="url"></div>
+      </div>
+
+      <div class="field">
+        <label for="skills_needed">Skills you need</label>
+        <input id="skills_needed" name="skills_needed" type="text" placeholder="flutter firebase design">
+      </div>
+
+      <div class="field">
+        <label for="roles">Roles open</label>
+        <textarea id="roles" name="roles" rows="3"
+                  placeholder="Backend developer: python, postgres x2&#10;Designer: figma"></textarea>
+        <div class="hint">One per line. Add <span class="mono">x2</span> at the end for two slots.</div>
+      </div>
+
+      <div class="field" style="max-width:20rem">
+        <label for="min_rep_tier">Minimum standing to apply</label>
+        <select id="min_rep_tier" name="min_rep_tier">
+          {% for label, threshold in REP_TIERS %}<option value="{{ label }}">{{ label }}</option>{% endfor %}
+        </select>
+        <div class="hint">Leave at Newcomer unless you have a reason. Gatekeeping juniors is how a board goes quiet.</div>
+      </div>
+    </div>
+    <div class="panel-foot btn-row">
+      <button type="submit" class="btn">Post project</button>
+      <a class="btn btn--ghost" href="/projects">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

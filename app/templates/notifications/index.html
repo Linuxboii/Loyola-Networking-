@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head"><div><h1>Alerts</h1></div></div>
+
+{% if items %}
+<div class="board">
+  {% for n in items %}
+  <article class="row" style="{% if n.id in unread_ids %}background:var(--stamp-soft){% endif %}">
+    <div class="row-gutter" style="padding-top:1rem">
+      <span class="kind {% if n.kind == 'moderation' %}kind--notice{% elif n.kind == 'support' %}kind--question{% endif %}">
+        {{ n.kind|capitalize }}
+      </span>
+    </div>
+    <div class="row-body">
+      <h3 class="row-title" style="font-size:.98rem"><a href="{{ n.link }}">{{ n.title }}</a></h3>
+      {% if n.body %}<div class="row-text">{{ n.body }}</div>{% endif %}
+      <div class="row-meta"><span>{{ n.created_at|timeago }}</span></div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel empty">
+  <h3>Nothing yet</h3>
+  <p>Replies, endorsements and moderation decisions land here.</p>
+</div>
+{% endif %}
+{% endblock %}

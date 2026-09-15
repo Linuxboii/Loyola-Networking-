@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--full{% endblock %}
+{% block nav %}{% endblock %}
+
+{% block content %}
+<div style="max-width:720px;margin:0 auto">
+
+  <div class="page-head">
+    <div>
+      <h1>Verify your identity</h1>
+      <p class="lede">
+        Everyone here is a real, enrolled member of {{ CAMPUS }}. That only works if we
+        check — so before you can see or post anything, we read your college ID card.
+      </p>
+    </div>
+  </div>
+
+  <ol class="steps panel" style="padding:1.1rem 1.1rem 0.3rem;list-style:none">
+    <li data-state="{{ 'done' if record else 'active' }}">
+      <strong>Photograph your ID card</strong>
+      <div class="muted">We read your name, roll number, course and expiry from it.</div>
+    </li>
+    <li data-state="{% if record and record.selfie_path %}done{% elif record %}active{% endif %}">
+      <strong>Take a selfie</strong>
+      <div class="muted">A reviewer checks it against the photo on your card.</div>
+    </li>
+    <li data-state="{% if record and record.status == 'approved' %}done{% elif record and record.status == 'in_review' %}active{% endif %}">
+      <strong>A moderator approves you</strong>
+      <div class="muted">Usually within a day. You get read-only access while you wait.</div>
+    </li>
+  </ol>
+
+  {% if record and record.status in ('needs_selfie', 'in_review') %}
+  <div class="flash flash-ok" style="margin-top:1rem">
+    We already read your card. <a href="/verify/confirm">Continue where you left off</a>.
+  </div>
+  {% endif %}
+
+  <form class="panel" method="post" action="/verify/card" enctype="multipart/form-data"
+        style="margin-top:1rem" data-capture="card">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <input type="hidden" name="live_capture" value="0">
+
+    <div class="panel-head"><h2>Photograph the front of your card</h2></div>
+
+    <div class="panel-body">
+      <div class="capture">
+        <div class="capture-frame" hidden>
+          <video playsinline muted></video>
+          <div class="capture-guide" aria-hidden="true"></div>
+        </div>
+        <canvas hidden></canvas>
+        <img data-preview hidden alt="The photo you just took">
+
+        <div class="btn-row" style="justify-content:center;margin-top:0.75rem">
+          <button type="button" class="btn" data-start>Open camera</button>
+          <button type="button" class="btn btn--stamp" data-shoot hidden>Take photo</button>
+          <button type="button" class="btn btn--ghost" data-retry hidden>Retake</button>
+        </div>
+
+        <p class="hint" style="margin-top:0.6rem">
+          Fill the frame with the card, keep it flat, and avoid direct light on the laminate.
+        </p>
+
+        <div data-camera-error class="flash flash-warn" style="margin-top:0.75rem" hidden>
+          We could not open your camera. Upload a photo of the card instead.
+        </div>
+
+        {# One input, always present. JavaScript writes the captured frame into
+           it; without JavaScript it is simply visible and used directly. It is
+           never marked required, because a hidden required control blocks
+           submission in every browser. #}
+        <div data-fallback style="margin-top:0.75rem">
+          <label for="card-file">Photo of your ID card</label>
+          <input id="card-file" type="file" name="card" accept="image/*" capture="environment">
+        </div>
+      </div>
+
+      <details style="margin-top:1rem">
+        <summary class="soft">What happens to this photo</summary>
+        <div class="stack" style="margin-top:0.6rem;font-size:0.92rem">
+          <p>
+            It is encrypted the moment it reaches the server, stored where only the
+            verification code can read it, and every single time a reviewer opens it we
+            record who looked and when.
+          </p>
+          <p>
+            <strong>It is deleted {{ retention_days }} days after your verification finishes.</strong>
+            After that only the extracted fields — your name, roll number, course and batch —
+            remain, plus a one-way hash used to catch duplicate cards.
+          </p>
+          <p>Reviewers see a cropped photo and your details, not the whole card, unless they escalate.</p>
+          <p class="muted"><a href="/privacy">Read the full privacy notice</a></p>
+        </div>
+      </details>
+    </div>
+
+    <div class="panel-foot">
+      <div class="btn-row">
+        <button type="submit" class="btn" disabled>Read my card</button>
+        <span class="muted">
+          {{ attempts_used|default(0) }} of {{ attempts_allowed|default(3) }} attempts used this week
+        </span>
+      </div>
+    </div>
+  </form>
+
+  {% if ocr_debug %}
+  <div class="panel" style="margin-top:1rem">
+    <div class="panel-head"><h2>OCR debug</h2></div>
+    <div class="panel-body mono" style="font-size:0.78rem;white-space:pre-wrap">{{ ocr_debug }}</div>
+  </div>
+  {% endif %}
+
+  <p class="muted center" style="margin-top:1.5rem">
+    Stuck? <a href="/support">Get help</a>
+  </p>
+</div>
+{% endblock %}

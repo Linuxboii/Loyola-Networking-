@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--full{% endblock %}
+
+{% block content %}
+<div class="measure" style="margin:0 auto">
+  <div class="page-head"><div><h1>Support</h1></div></div>
+
+  <div class="panel" style="border-left:3px solid var(--verified)">
+    <div class="panel-body stack">
+      <h2>If you are struggling</h2>
+      <p>
+        If things are heavy right now, talk to someone. You will not get in trouble for it,
+        and nothing you write in that situation gets your account actioned.
+      </p>
+      <p><strong>{{ COUNSELLOR }}</strong></p>
+      <p class="soft">
+        India-wide, free, 24/7: <strong>Tele-MANAS 14416</strong> · <strong>Kiran 1800-599-0019</strong> ·
+        <strong>AASRA 9820466726</strong>
+      </p>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:1rem"><div class="panel-body stack">
+    <h2>Trouble verifying</h2>
+    <p>Most failures are the photo, not the card. Worth trying:</p>
+    <ul>
+      <li>Fill the frame with the card and keep it flat.</li>
+      <li>Move out of direct light — glare on the laminate hides the print.</li>
+      <li>Steady hands. Blur is the single most common reason a card cannot be read.</li>
+      <li>Front of the card, not the back.</li>
+    </ul>
+    <p>
+      If it read your details wrong, flag it on the confirmation screen rather than trying
+      again — a reviewer can correct it by hand.
+    </p>
+    <p class="soft">
+      Three attempts a week. Out of attempts, or locked out of your account? A moderator can
+      reset it in person after checking your card.
+    </p>
+  </div></div>
+
+  <div class="panel" style="margin-top:1rem"><div class="panel-body stack">
+    <h2>Reporting something</h2>
+    <p>
+      Every post, comment and answer has a Report link. Reports go to a moderation queue with
+      a target of under 12 hours to a decision. You will be told the outcome, and whoever was
+      actioned can appeal it to a different moderator.
+    </p>
+    <p><a href="/rules">Community rules</a> · <a href="/transparency">Transparency report</a></p>
+  </div></div>
+</div>
+{% endblock %}

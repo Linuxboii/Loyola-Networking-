@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import chip %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Lost and found</h1>
+    <p class="lede">Left something in a classroom? Found somebody's ID on the stairs?</p>
+  </div>
+</div>
+
+{% if me.tier >= 2 %}
+<details class="panel" style="margin-bottom:1rem">
+  <summary class="panel-head" style="cursor:pointer"><h2 style="margin:0">Post something</h2></summary>
+  <form method="post" action="/lost-found/new" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <div class="panel-body">
+      <div class="field-row">
+        <div class="field" style="flex:0 1 12rem">
+          <label for="kind">Which</label>
+          <select id="kind" name="kind">
+            <option value="lost">I lost something</option>
+            <option value="found">I found something</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="title">What</label>
+          <input id="title" name="title" type="text" required maxlength="160" placeholder="Black Casio calculator">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="location">Where</label><input id="location" name="location" type="text" placeholder="Block C, second floor"></div>
+        <div class="field" style="flex:0 1 12rem"><label for="happened_on">When</label><input id="happened_on" name="happened_on" type="date"></div>
+      </div>
+      <div class="field">
+        <label for="description">Details</label>
+        <textarea id="description" name="description" rows="2" maxlength="2000"></textarea>
+      </div>
+      <div class="field">
+        <label for="photo">Photo</label>
+        <input id="photo" name="photo" type="file" accept="image/*">
+      </div>
+      <button type="submit" class="btn">Post</button>
+    </div>
+  </form>
+</details>
+{% endif %}
+
+<div class="tabs">
+  <a href="/lost-found" {% if not kind %}aria-current="page"{% endif %}>Everything</a>
+  <a href="/lost-found?kind=lost" {% if kind == 'lost' %}aria-current="page"{% endif %}>Lost</a>
+  <a href="/lost-found?kind=found" {% if kind == 'found' %}aria-current="page"{% endif %}>Found</a>
+</div>
+
+{% if items %}
+<div class="board">
+  {% for i in items %}
+  <article class="row">
+    <div class="row-gutter" style="padding-top:1rem">
+      <span class="kind {% if i.kind == 'found' %}kind--question{% else %}kind--notice{% endif %}">
+        {{ i.kind|capitalize }}
+      </span>
+    </div>
+    <div class="row-body">
+      <h3 class="row-title">{{ i.title }}</h3>
+      <div class="row-text">{{ i.description|excerpt(160) }}</div>
+      {% if i.image_path %}
+      <div class="row-media" style="max-width:220px"><img src="{{ i.image_path|media_url }}" alt="" loading="lazy"></div>
+      {% endif %}
+      <div class="row-meta">
+        {{ chip(i.reporter, show_tier=false) }}
+        {% if i.location %}<span>{{ i.location }}</span>{% endif %}
+        {% if i.happened_on %}<span>{{ i.happened_on|datefmt }}</span>{% endif %}
+        <span class="muted">{{ i.created_at|timeago }}</span>
+      </div>
+
+      {% if i.reporter_id == me.id or me.is_moderator %}
+      <form method="post" action="/lost-found/{{ i.id }}/resolve" class="field-row"
+            style="margin-top:.6rem;align-items:flex-end;max-width:26rem">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        <div style="flex:1">
+          <label for="helper-{{ i.id }}">Who helped? (optional)</label>
+          <input id="helper-{{ i.id }}" name="helper" type="text" placeholder="@username">
+        </div>
+        <div style="flex:0"><button type="submit" class="btn btn--ghost btn--sm">Mark sorted</button></div>
+      </form>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel empty">
+  <h3>Nothing open right now</h3>
+  <p>Which is the good outcome.</p>
+</div>
+{% endif %}
+
+{% if resolved %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Recently reunited</h2></div>
+  <div class="panel-body">
+    <ul class="list-plain">
+      {% for i in resolved %}
+      <li><strong>{{ i.title }}</strong> <span class="muted">— {{ i.created_at|timeago }}</span></li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

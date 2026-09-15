@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import chip, anon_chip %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Questions</h1>
+    <p class="lede">
+      Doubts, solved once and kept. Every semester this archive is worth more than the last.
+    </p>
+  </div>
+  {% if me.tier >= 2 %}
+  <div class="right"><a class="btn" href="/qa/ask">Ask a question</a></div>
+  {% endif %}
+</div>
+
+<form method="get" action="/qa" class="panel" style="margin-bottom:1rem">
+  <div class="panel-body">
+    <div class="field-row">
+      <div><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}" placeholder="dbms normalisation"></div>
+      <div><label for="subject">Subject</label>
+        <input id="subject" name="subject" type="text" list="subject-list" value="{{ subject }}">
+        <datalist id="subject-list">{% for s in subjects %}<option value="{{ s }}">{% endfor %}</datalist>
+      </div>
+      <div><label for="semester">Semester</label><input id="semester" name="semester" type="text" value="{{ semester }}" placeholder="IV"></div>
+    </div>
+    <button type="submit" class="btn btn--sm">Search</button>
+  </div>
+</form>
+
+<div class="tabs">
+  <a href="/qa" {% if not filter %}aria-current="page"{% endif %}>All</a>
+  <a href="/qa?filter=unanswered" {% if filter == 'unanswered' %}aria-current="page"{% endif %}>Unanswered</a>
+  {% if tag %}<a href="/qa?tag={{ tag }}" aria-current="page">#{{ tag }}</a>{% endif %}
+</div>
+
+{% if questions %}
+<div class="board">
+  {% for question in questions %}
+  <article class="row">
+    <div class="row-gutter">
+      {% with target_type='question', target_id=question.id, score=question.score, my_vote=my_votes.get(question.id, 0) %}
+        {% include "components/_vote.html" %}
+      {% endwith %}
+    </div>
+    <div class="row-body">
+      <h3 class="row-title"><a href="/qa/{{ question.id }}">{{ question.title }}</a></h3>
+      <div class="row-text">{{ question.body|excerpt(180) }}</div>
+      <div class="row-meta">
+        {% if question.is_anonymous %}{{ anon_chip() }}{% else %}{{ chip(question.author) }}{% endif %}
+        <span>{{ question.created_at|timeago }}</span>
+        {% if question.accepted_answer_id %}
+        <span class="stamp stamp--verified">Solved</span>
+        {% elif question.answer_count %}
+        <span>{{ question.answer_count|pluralise('answer') }}</span>
+        {% else %}
+        <span class="muted">Unanswered</span>
+        {% endif %}
+        {% if question.subject %}<span>{{ question.subject }}</span>{% endif %}
+        {% for t in question.tags %}<a class="tag" href="/qa?tag={{ t }}">#{{ t }}</a>{% endfor %}
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+
+{% if has_more or page > 1 %}
+<div class="btn-row" style="margin-top:1rem;justify-content:center">
+  {% if page > 1 %}<a class="btn btn--ghost btn--sm" href="{{ request.url.include_query_params(page=page - 1) }}">Previous</a>{% endif %}
+  {% if has_more %}<a class="btn btn--ghost btn--sm" href="{{ request.url.include_query_params(page=page + 1) }}">Next</a>{% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="panel empty">
+  <h3>{% if q %}Nothing matched{% else %}No questions yet{% endif %}</h3>
+  <p>
+    {% if q %}Try different words, or <a href="/qa">browse everything</a>.
+    {% else %}The archive starts with one doubt. Ask yours.{% endif %}
+  </p>
+  {% if me.tier >= 2 %}
+  <div class="btn-row" style="justify-content:center"><a class="btn" href="/qa/ask">Ask a question</a></div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block rail %}
+<aside class="col-rail rail">
+  <div class="rail-block">
+    <h2 class="rail-title">Subjects</h2>
+    <ul class="list-plain">
+      {% for s in subjects %}
+      <li><a href="/qa?subject={{ s }}">{{ s }}</a></li>
+      {% else %}
+      <li class="muted">Subjects appear as questions get tagged.</li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="rail-block">
+    <h2 class="rail-title">Answering pays</h2>
+    <p style="font-size:.85rem;margin:0" class="soft">
+      An upvoted answer is 12 points. One marked as the solution is 20. It is the fastest
+      route out of Newcomer.
+    </p>
+    <p style="margin:.6rem 0 0"><a href="/qa?filter=unanswered" style="font-size:.86rem">Find something to answer</a></p>
+  </div>
+</aside>
+{% endblock %}

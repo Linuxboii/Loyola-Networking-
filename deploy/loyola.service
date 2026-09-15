@@ -1,0 +1,32 @@
+[Unit]
+Description=Loyola Networking — campus social network
+After=network.target postgresql@16-ems.service
+Wants=postgresql@16-ems.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/loyola
+EnvironmentFile=/root/loyola/.env
+# One worker on purpose: the box has a single core, and the OCR pipeline already
+# runs in its own short-lived subprocess. A second uvicorn worker would double
+# the resident memory and duplicate the APScheduler jobs.
+ExecStart=/root/loyola/venv/bin/python -m uvicorn app.main:app \
+    --host 127.0.0.1 --port 8011 --workers 1 \
+    --proxy-headers --forwarded-allow-ips='127.0.0.1' \
+    --timeout-keep-alive 20
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=25
+
+# The verification artefacts are the sensitive thing on this box; keep the
+# service away from everything it does not need.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
+ReadWritePaths=/var/lib/loyola /var/log/loyola /root/loyola
+
+[Install]
+WantedBy=multi-user.target

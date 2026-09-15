@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import chip %}
+
+{% block content %}
+<p class="muted" style="margin-bottom:.6rem"><a href="/opportunities">← Placements</a></p>
+
+<div class="panel">
+  <div class="panel-body">
+    <h1>{{ experience.company }}</h1>
+    <p class="lede" style="margin-top:0">{{ experience.role_title }}</p>
+    <div class="row-meta" style="margin-bottom:1rem">
+      {{ chip(experience.author) }}
+      <span class="tag">{{ experience.verdict }}</span>
+      <span class="muted">{{ experience.created_at|timeago }}</span>
+    </div>
+
+    {% if experience.rounds %}
+    <h3>Rounds</h3>
+    <ol class="steps" style="list-style:none;margin-bottom:1.25rem">
+      {% for r in experience.rounds %}
+      <li>
+        <strong>{{ r.name }}</strong>
+        {% if r.detail %}<div class="soft">{{ r.detail }}</div>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% endif %}
+
+    <div class="measure">{{ experience.body|richtext }}</div>
+
+    <div class="row-meta" style="margin-top:1rem">
+      <a class="muted" href="/report?type=post&amp;id={{ experience.id }}">Report</a>
+    </div>
+  </div>
+</div>
+
+{% if similar %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Others who interviewed at {{ experience.company }}</h2></div>
+  <div class="panel-body">
+    <ul class="list-plain">
+      {% for s in similar %}
+      <li>
+        <a href="/opportunities/interviews/{{ s.id }}">{{ s.role_title }}</a>
+        <span class="muted">— {{ s.verdict }}, {{ s.created_at|timeago }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

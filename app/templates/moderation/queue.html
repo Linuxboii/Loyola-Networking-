@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import chip %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Moderation queue</h1>
+    <p class="lede">
+      Target is under 12 hours to a decision. Three consistent votes resolve a report without
+      a staff moderator.
+    </p>
+  </div>
+  <div class="right"><a class="btn btn--ghost btn--sm" href="/moderation/audit">Audit log</a></div>
+</div>
+
+{% if crisis %}
+<div class="panel" style="margin-bottom:1rem;border-left:3px solid var(--verified)">
+  <div class="panel-head"><h2>Wellbeing — handle first</h2></div>
+  <div class="panel-body">
+    <p class="soft measure">
+      These posts read as distress. Nothing here has been removed and nobody has been
+      actioned — that is deliberate. Reach the person, or pass it to {{ counsellor }}.
+    </p>
+    {% for c in crisis %}
+    <div class="comment">
+      <div class="comment-head">
+        <a href="/u/">User #{{ c.user_id }}</a>
+        <span class="muted">{{ c.created_at|timeago }}</span>
+      </div>
+      <blockquote class="measure soft" style="margin:.3rem 0;padding-left:.75rem;border-left:2px solid var(--rule)">
+        {{ c.excerpt }}
+      </blockquote>
+      <form method="post" action="/moderation/crisis/{{ c.id }}" class="field-row" style="align-items:flex-end">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        <div style="flex:1"><input name="note" type="text" placeholder="What you did"></div>
+        <div style="flex:0"><button type="submit" class="btn btn--ghost btn--sm">Mark handled</button></div>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="tabs">
+  <a href="/moderation" {% if show == 'open' %}aria-current="page"{% endif %}>Open</a>
+  <a href="/moderation?show=escalated" {% if show == 'escalated' %}aria-current="page"{% endif %}>Escalated</a>
+  <a href="/moderation?show=closed" {% if show == 'closed' %}aria-current="page"{% endif %}>Closed</a>
+</div>
+
+{% if items %}
+{% for item in items %}
+{% set r = item.report %}
+<div class="panel" style="margin-bottom:1rem">
+  <div class="panel-head">
+    <h2 style="font-size:.98rem">{{ r.category.replace('_', ' ')|capitalize }}</h2>
+    <span class="muted">on a {{ r.target_type }} · {{ r.created_at|timeago }}</span>
+    {% if r.source == 'auto' %}<span class="stamp">Automated</span>{% endif %}
+    {% if r.weight > 1 %}<span class="tag">weighted ×{{ r.weight|round(1) }}</span>{% endif %}
+    {% if item.removed %}<span class="right tag">already removed</span>{% endif %}
+  </div>
+  <div class="panel-body">
+    <blockquote class="measure" style="margin:0 0 .75rem;padding-left:.75rem;border-left:2px solid var(--rule)">
+      {{ item.excerpt }}
+    </blockquote>
+    {% if r.detail %}<p class="soft"><strong>Reporter says:</strong> {{ r.detail }}</p>{% endif %}
+    <div class="row-meta">
+      <a href="{{ item.link }}">Open in context</a>
+      {% if item.author %}<span>Author: <a href="/u/{{ item.author.handle }}">{{ item.author.full_name }}</a> ({{ item.author.rep_tier }})</span>{% endif %}
+    </div>
+
+    {% if item.votes %}
+    <p class="muted" style="font-size:.84rem;margin-top:.6rem">
+      Votes so far:
+      {% for v in item.votes %}<span class="tag">{{ v.vote }}</span>{% endfor %}
+      — three matching votes decide it.
+    </p>
+    {% endif %}
+  </div>
+
+  {% if r.status in ('open', 'in_review') %}
+  <div class="panel-foot">
+    <div class="btn-row" style="align-items:flex-start">
+      {% for vote, label in [('remove', 'Remove it'), ('keep', 'Leave it up'), ('escalate', 'Escalate')] %}
+      <form method="post" action="/moderation/{{ r.id }}/vote">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        <input type="hidden" name="vote" value="{{ vote }}">
+        <button type="submit" class="btn btn--ghost btn--sm"
+                {% if item.my_vote and item.my_vote.vote == vote %}style="border-color:var(--stamp);color:var(--stamp)"{% endif %}>
+          {{ label }}
+        </button>
+      </form>
+      {% endfor %}
+
+      {% if is_staff %}
+      <details style="margin-left:auto">
+        <summary class="soft">Decide now</summary>
+        <form method="post" action="/moderation/{{ r.id }}/decide" style="margin-top:.5rem;min-width:18rem">
+          <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+          <div class="field">
+            <label for="note-{{ r.id }}">Reason (the author sees this)</label>
+            <textarea id="note-{{ r.id }}" name="note" rows="2" required></textarea>
+          </div>
+          <div class="btn-row">
+            <button type="submit" name="outcome" value="upheld" class="btn btn--stamp btn--sm">Uphold</button>
+            <button type="submit" name="outcome" value="dismissed" class="btn btn--ghost btn--sm">Dismiss</button>
+          </div>
+        </form>
+      </details>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="panel-foot muted">
+    {{ r.status|capitalize }}{% if r.resolution %} — {{ r.resolution }}{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+
+{% else %}
+<div class="panel empty">
+  <h3>Queue is clear</h3>
+  <p>Nothing waiting. That is the goal.</p>
+</div>
+{% endif %}
+
+{% if appeals %}
+<div class="panel" style="margin-top:1.5rem">
+  <div class="panel-head"><h2>Appeals</h2></div>
+  <div class="panel-body">
+    <p class="soft measure" style="margin-bottom:.75rem">
+      An appeal must be read by someone other than the moderator who acted.
+    </p>
+    {% for a in appeals %}
+    <div class="comment">
+      <div class="comment-head">
+        <strong>Appeal on action #{{ a.action_id }}</strong>
+        <span class="muted">{{ a.created_at|timeago }}</span>
+      </div>
+      <p class="measure">{{ a.reason|richtext }}</p>
+      <form method="post" action="/moderation/appeals/{{ a.id }}/decide">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        <div class="field">
+          <label for="anote-{{ a.id }}">Your reasoning</label>
+          <textarea id="anote-{{ a.id }}" name="note" rows="2" required></textarea>
+        </div>
+        <div class="btn-row">
+          <button type="submit" name="outcome" value="upheld" class="btn btn--ghost btn--sm">Uphold appeal</button>
+          <button type="submit" name="outcome" value="denied" class="btn btn--ghost btn--sm">Deny</button>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if takedowns %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Copyright takedowns</h2></div>
+  <div class="panel-body">
+    {% for t in takedowns %}
+    <div class="comment">
+      <div class="comment-head">
+        <a href="/vault/{{ t.resource_id }}">Resource #{{ t.resource_id }}</a>
+        <span class="muted">{{ t.created_at|timeago }}</span>
+        {% if t.claimant %}<span class="tag">{{ t.claimant }}</span>{% endif %}
+      </div>
+      <p class="measure">{{ t.reason }}</p>
+      <form method="post" action="/moderation/takedowns/{{ t.id }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        <div class="field"><input name="note" type="text" placeholder="Decision note"></div>
+        <div class="btn-row">
+          <button type="submit" name="outcome" value="upheld" class="btn btn--stamp btn--sm">Remove the file</button>
+          <button type="submit" name="outcome" value="dismissed" class="btn btn--ghost btn--sm">Restore it</button>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

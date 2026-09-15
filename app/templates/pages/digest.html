@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Your weekly digest</h1>
+    <p class="lede">New this week in the areas you follow.</p>
+  </div>
+</div>
+
+{% if questions %}
+<div class="panel">
+  <div class="panel-head"><h2>Questions nobody has answered</h2></div>
+  <div class="board">
+    {% for q in questions %}
+    <article class="row">
+      <div class="row-gutter"><span class="vote-score">{{ q.score }}</span></div>
+      <div class="row-body">
+        <h3 class="row-title"><a href="/qa/{{ q.id }}">{{ q.title }}</a></h3>
+        <div class="row-meta">
+          {% if q.subject %}<span>{{ q.subject }}</span>{% endif %}
+          <span>{{ q.created_at|timeago }}</span>
+          {% for t in q.tags %}<a class="tag" href="/qa?tag={{ t }}">#{{ t }}</a>{% endfor %}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  <div class="panel-foot"><a href="/qa?filter=unanswered">See all unanswered questions</a></div>
+</div>
+{% endif %}
+
+{% if opportunities %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>New opportunities</h2></div>
+  <div class="board">
+    {% for o in opportunities %}
+    <article class="row {% if o.is_official %}row--official{% endif %}">
+      <div class="row-gutter"></div>
+      <div class="row-body">
+        <h3 class="row-title"><a href="/opportunities">{{ o.company }} — {{ o.role_title }}</a></h3>
+        <div class="row-meta">
+          <span>{{ o.kind|capitalize }}</span>
+          {% if o.location %}<span>{{ o.location }}</span>{% endif %}
+          {% if o.deadline %}<span>closes {{ o.deadline|datefmt }}</span>{% endif %}
+          {% if o.is_official %}<span class="stamp">Verified</span>{% endif %}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if events %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Coming up</h2></div>
+  <div class="board">
+    {% for e in events %}
+    <article class="row">
+      <div class="row-gutter"></div>
+      <div class="row-body">
+        <h3 class="row-title"><a href="/events/{{ e.id }}">{{ e.title }}</a></h3>
+        <div class="row-meta">
+          <span>{{ e.starts_at|timefmt }}</span>
+          {% if e.venue %}<span>{{ e.venue }}</span>{% endif %}
+          <span>{{ e.rsvp_count|pluralise('person', 'people') }} going</span>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if not questions and not opportunities and not events %}
+<div class="panel empty">
+  <h3>Quiet week</h3>
+  <p>Nothing new in your areas. <a href="/me/edit">Add a few interests</a> to widen this.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><h1>Your appeals</h1>
+<p class="lede">Each one is read by a different moderator than the one who acted.</p></div></div>
+
+{% if appeals %}
+<div class="board">
+  {% for a in appeals %}
+  {% set act = actions.get(a.action_id) %}
+  <article class="row">
+    <div class="row-gutter" style="padding-top:1rem"><span class="kind">{{ a.status }}</span></div>
+    <div class="row-body">
+      <h3 class="row-title" style="font-size:.98rem">
+        {% if act %}{{ act.action.replace('_',' ')|capitalize }}{% else %}Action #{{ a.action_id }}{% endif %}
+      </h3>
+      {% if act and act.reason %}<div class="row-text soft"><strong>Original reason:</strong> {{ act.reason }}</div>{% endif %}
+      <div class="row-text"><strong>You said:</strong> {{ a.reason|excerpt(200) }}</div>
+      {% if a.decision_note %}<div class="row-text soft"><strong>Decision:</strong> {{ a.decision_note }}</div>{% endif %}
+      <div class="row-meta"><span>{{ a.created_at|timeago }}</span></div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel empty"><h3>No appeals</h3><p>Nothing to contest.</p></div>
+{% endif %}
+{% endblock %}

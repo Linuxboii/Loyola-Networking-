@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--full{% endblock %}
+{% block nav %}{% endblock %}
+{% block content %}
+<div class="panel empty" style="max-width:520px;margin:3rem auto">
+  <h1>Not allowed</h1>
+  <p>{{ detail }}</p>
+  <div class="btn-row" style="justify-content:center">
+    <a class="btn" href="/">Back to the feed</a>
+    <a class="btn btn--ghost" href="/me/reputation">How standing works</a>
+  </div>
+</div>
+{% endblock %}

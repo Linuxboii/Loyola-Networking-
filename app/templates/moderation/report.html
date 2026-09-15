@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width:520px">
+  <div class="page-head">
+    <div>
+      <h1>Report this</h1>
+      <p class="lede">A moderator reads every report. You will be told what was decided.</p>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:1rem">
+    <div class="panel-body">
+      <h3 style="font-size:.9rem;color:var(--ink-faint)">What you are reporting</h3>
+      <blockquote class="measure soft" style="margin:.35rem 0 0;padding-left:.75rem;border-left:2px solid var(--rule)">
+        {{ excerpt }}
+      </blockquote>
+    </div>
+  </div>
+
+  <form class="panel" method="post" action="/report">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <input type="hidden" name="target_type" value="{{ target_type }}">
+    <input type="hidden" name="target_id" value="{{ target_id }}">
+    <div class="panel-body">
+      <div class="field">
+        <label>What is wrong with it</label>
+        {% for value, label in categories %}
+        <label class="check" style="margin-top:.3rem">
+          <input type="radio" name="category" value="{{ value }}" required>
+          <span>{{ label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="field">
+        <label for="detail">Anything else we should know</label>
+        <textarea id="detail" name="detail" rows="3" maxlength="2000"></textarea>
+      </div>
+      <p class="hint">
+        Reporting in bad faith — to bury something you disagree with — is itself actionable.
+      </p>
+    </div>
+    <div class="panel-foot btn-row">
+      <button type="submit" class="btn btn--stamp">Send report</button>
+      <a class="btn btn--ghost" href="javascript:history.back()">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

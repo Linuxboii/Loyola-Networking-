@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Campus events</h1>
+    <p class="lede">Everything happening, in one calendar. RSVP, then show your ticket at the door.</p>
+  </div>
+  {% if can(me, 'host_event') %}
+  <div class="right"><a class="btn" href="/events/new">Host an event</a></div>
+  {% endif %}
+</div>
+
+<div class="tabs">
+  <a href="/events" {% if when != 'past' %}aria-current="page"{% endif %}>Upcoming</a>
+  <a href="/events?when=past" {% if when == 'past' %}aria-current="page"{% endif %}>Past</a>
+</div>
+
+{% for day, events in by_day.items() %}
+<div class="panel" style="margin-bottom:1rem">
+  <div class="panel-head"><h2>{{ day }}</h2></div>
+  <div class="board">
+    {% for e in events %}
+    <article class="row {% if e.is_official %}row--official{% endif %}">
+      <div class="row-gutter" style="padding-top:1rem">
+        <span class="vote-score">{{ e.starts_at.strftime('%H:%M') }}</span>
+      </div>
+      <div class="row-body">
+        <h3 class="row-title"><a href="/events/{{ e.id }}">{{ e.title }}</a></h3>
+        <div class="row-text">{{ e.description|excerpt(140) }}</div>
+        <div class="row-meta">
+          {% if e.venue %}<span>{{ e.venue }}</span>{% endif %}
+          <span>{{ e.rsvp_count|pluralise('person', 'people') }} going</span>
+          {% if e.capacity %}<span class="muted">cap {{ e.capacity }}</span>{% endif %}
+          {% if e.id in my_rsvps %}<span class="tier tier-contributor">You are going</span>{% endif %}
+          {% for t in e.tags %}<a class="tag" href="/events">#{{ t }}</a>{% endfor %}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="panel empty">
+  <h3>{% if when == 'past' %}Nothing in the archive{% else %}Nothing scheduled{% endif %}</h3>
+  <p>{% if can(me, 'host_event') %}Put something on the calendar.{% else %}Hosting unlocks at Established standing.{% endif %}</p>
+</div>
+{% endfor %}
+{% endblock %}

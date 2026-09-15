@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width:560px">
+  <div class="page-head"><div><h1>Start a group</h1></div></div>
+  <form class="panel" method="post" action="/groups/new">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <div class="panel-body">
+      <div class="field">
+        <label for="name">Name</label>
+        <input id="name" name="name" type="text" required minlength="3" maxlength="100">
+      </div>
+      <div class="field">
+        <label for="kind">Kind</label>
+        <select id="kind" name="kind">
+          <option value="interest">Interest group — anyone can start one</option>
+          <option value="club">Club — an actual campus club</option>
+        </select>
+        <div class="hint">Clubs are marked official once an admin confirms the office-bearers.</div>
+      </div>
+      <div class="field">
+        <label for="description">What it is for</label>
+        <textarea id="description" name="description" rows="4" maxlength="2000"></textarea>
+      </div>
+    </div>
+    <div class="panel-foot btn-row">
+      <button type="submit" class="btn">Create group</button>
+      <a class="btn btn--ghost" href="/groups">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

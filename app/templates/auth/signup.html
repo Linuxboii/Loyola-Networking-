@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--full{% endblock %}
+{% block nav %}{% endblock %}
+
+{% block content %}
+<div style="max-width:440px;margin:2rem auto 0">
+  <div class="page-head">
+    <div>
+      <h1>Create your account</h1>
+      <p class="lede">
+        Closed to {{ CAMPUS }}. You will verify with your ID card next — nothing is visible
+        until you do.
+      </p>
+    </div>
+  </div>
+
+  <form class="panel" method="post" action="/signup">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <div class="panel-body">
+      <div class="field">
+        <label for="full_name">Full name</label>
+        <input id="full_name" name="full_name" type="text" required autocomplete="name"
+               value="{{ full_name|default('') }}" maxlength="120">
+        <div class="hint">Exactly as printed on your ID card.</div>
+      </div>
+
+      <div class="field">
+        <label for="handle">Username</label>
+        <input id="handle" name="handle" type="text" required autocomplete="username"
+               value="{{ handle|default('') }}" pattern="[a-z0-9_]{3,24}" maxlength="24">
+        <div class="hint">Lowercase letters, numbers and underscores. This is how you sign in.</div>
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" required autocomplete="new-password">
+        <div class="hint">At least 10 characters, with a letter and a number.</div>
+      </div>
+
+      <div class="field">
+        <label for="password2">Password again</label>
+        <input id="password2" name="password2" type="password" required autocomplete="new-password">
+      </div>
+
+      <div class="field">
+        <label class="check">
+          <input type="checkbox" name="consent" value="yes" required>
+          <span>
+            I understand that a photo of my ID card and a selfie will be collected to verify
+            me, kept encrypted, and <strong>deleted {{ ID_RETENTION_DAYS }} days</strong> after
+            verification. <a href="/privacy" target="_blank">Privacy notice</a>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <div class="panel-foot">
+      <button type="submit" class="btn btn--block">Create account</button>
+    </div>
+  </form>
+
+  <p class="center muted" style="margin-top:1rem">
+    Already have an account? <a href="/login">Sign in</a>
+  </p>
+</div>
+{% endblock %}

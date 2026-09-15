@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import avatar, chip %}
+
+{% block content %}
+<p class="muted" style="margin-bottom:.6rem"><a href="/events">← All events</a></p>
+
+<div class="panel {% if event.is_official %}row--official{% endif %}">
+  <div class="panel-body">
+    <h1>{{ event.title }}</h1>
+    <div class="row-meta" style="margin-bottom:1rem">
+      {{ chip(event.host) }}
+      {% if group %}<a href="/groups/{{ group.slug }}">{{ group.name }}</a>{% endif %}
+      {% if event.is_official %}<span class="stamp">Official</span>{% endif %}
+    </div>
+
+    <dl class="kv" style="margin-bottom:1rem">
+      <dt>When</dt><dd>{{ event.starts_at|timefmt }}{% if event.ends_at %} — {{ event.ends_at.strftime('%I:%M %p') }}{% endif %}</dd>
+      {% if event.venue %}<dt>Where</dt><dd>{{ event.venue }}</dd>{% endif %}
+      <dt>Going</dt><dd>{{ event.rsvp_count }}{% if event.capacity %} of {{ event.capacity }}{% endif %}{% if event.checkin_count %} · {{ event.checkin_count }} checked in{% endif %}</dd>
+    </dl>
+
+    <div class="measure">{{ event.description|richtext }}</div>
+
+    <div class="btn-row" style="margin-top:1.25rem">
+      {% if me.tier >= 2 and event.status == 'active' %}
+      <form method="post" action="/events/{{ event.id }}/rsvp">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        {% if my_rsvp and my_rsvp.state == 'going' %}
+        <button type="submit" class="btn btn--ghost">Cancel RSVP</button>
+        {% elif is_full %}
+        <button type="button" class="btn" disabled>Event is full</button>
+        {% else %}
+        <button type="submit" class="btn">RSVP</button>
+        {% endif %}
+      </form>
+
+      {% if not my_rsvp or my_rsvp.state != 'going' %}
+      <form method="post" action="/events/{{ event.id }}/rsvp">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        <input type="hidden" name="role" value="volunteer">
+        <button type="submit" class="btn btn--ghost">Volunteer</button>
+      </form>
+      {% endif %}
+      {% endif %}
+
+      {% if is_host %}
+      <a class="btn btn--stamp" href="/events/{{ event.id }}/checkin">Run check-in</a>
+      {% if event.starts_at < now() and event.status == 'active' %}
+      <form method="post" action="/events/{{ event.id }}/close" data-confirm="Close this event and credit attendance?">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        <button type="submit" class="btn btn--ghost">Wrap up</button>
+      </form>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  {% if my_rsvp and my_rsvp.state == 'going' %}
+  <div class="panel-foot">
+    {% if my_rsvp.checked_in_at %}
+    <strong>Checked in</strong> at {{ my_rsvp.checked_in_at.strftime('%d %b, %I:%M %p') }}.
+    {% else %}
+    <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+      <img src="/events/{{ event.id }}/ticket.png" alt="Your entry ticket"
+           style="width:120px;height:120px;background:#fff;border:1px solid var(--rule)">
+      <div>
+        <strong>Your ticket</strong>
+        <div class="muted" style="font-size:.85rem">Show this at the door. Code: <span class="mono">{{ my_rsvp.ticket_code }}</span></div>
+        {% if my_rsvp.role == 'volunteer' %}
+        <div class="muted" style="font-size:.85rem">Volunteering — worth more once you are scanned in.</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Who is going</h2></div>
+  <div class="panel-body">
+    {% if attendees %}
+    <div style="display:flex;flex-wrap:wrap;gap:.6rem">
+      {% for a in attendees %}
+      <a href="/u/{{ a.handle }}" style="display:flex;align-items:center;gap:.4rem;text-decoration:none">
+        {{ avatar(a, 'avatar--sm') }}<span style="font-size:.88rem">{{ a.full_name }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">Nobody yet. Be the first.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

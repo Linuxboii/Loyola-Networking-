@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import chip %}
+
+{% block content %}
+<p class="muted" style="margin-bottom:.6rem"><a href="/vault">← Resource vault</a></p>
+
+<div class="panel">
+  <div class="panel-body">
+    <h1>{{ resource.title }}</h1>
+    <div class="row-meta" style="margin-bottom:1rem">
+      {{ chip(resource.uploader) }}
+      <span>{{ resource.created_at|timeago }}</span>
+      {% if resource.version > 1 %}<span class="muted">version {{ resource.version }}</span>{% endif %}
+      {% if resource.status == 'takedown' %}<span class="stamp">Hidden — takedown under review</span>{% endif %}
+      {% if resource.status == 'superseded' %}<span class="muted">Superseded by a newer version</span>{% endif %}
+    </div>
+
+    <dl class="kv" style="margin-bottom:1rem">
+      {% if resource.course %}<dt>Course</dt><dd>{{ resource.course }}</dd>{% endif %}
+      {% if resource.semester %}<dt>Semester</dt><dd>{{ resource.semester }}</dd>{% endif %}
+      {% if resource.subject %}<dt>Subject</dt><dd>{{ resource.subject }}</dd>{% endif %}
+      <dt>Size</dt><dd>{{ (resource.file_size / 1024)|round|int }} KB</dd>
+      <dt>Opened</dt><dd>{{ resource.download_count }} times</dd>
+    </dl>
+
+    {% if resource.description %}<div class="measure">{{ resource.description|richtext }}</div>{% endif %}
+
+    {% if resource.status in ('active', 'superseded') %}
+    <div class="btn-row" style="margin-top:1.25rem">
+      <a class="btn" href="/vault/{{ resource.id }}/download" target="_blank" rel="noopener">Open file</a>
+      <form method="post" action="/vault/{{ resource.id }}/vote">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        <button type="submit" class="btn btn--ghost">
+          {{ 'Useful — remove my vote' if voted else 'Mark as useful' }} ({{ resource.score }})
+        </button>
+      </form>
+    </div>
+
+    {% if is_image %}
+    <div class="row-media" style="margin-top:1rem;max-width:100%">
+      <img src="/vault/{{ resource.id }}/download" alt="{{ resource.title }}" loading="lazy">
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{% if versions %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Other versions</h2></div>
+  <div class="panel-body">
+    <ul class="list-plain">
+      {% for v in versions %}
+      <li><a href="/vault/{{ v.id }}">Version {{ v.version }}</a> — {{ v.created_at|datefmt }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Report a copyright problem</h2></div>
+  <div class="panel-body">
+    <p class="soft measure">
+      If this is published or paid material, or it is your work posted without permission,
+      file a takedown. The file is hidden immediately and a moderator decides.
+    </p>
+    <form method="post" action="/vault/{{ resource.id }}/takedown"
+          data-confirm="File a takedown? The file is hidden until a moderator reviews it.">
+      <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+      <div class="field">
+        <label for="claimant">Who owns it</label>
+        <input id="claimant" name="claimant" type="text" maxlength="160" placeholder="Publisher, or your own name">
+      </div>
+      <div class="field">
+        <label for="reason">Why</label>
+        <textarea id="reason" name="reason" rows="3" required maxlength="2000"></textarea>
+      </div>
+      <button type="submit" class="btn btn--ghost btn--sm">File takedown</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

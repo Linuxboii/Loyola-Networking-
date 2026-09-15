@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import avatar, tier, identity, chip %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% if q %}{{ total }} result{{ '' if total == 1 else 's' }} for "{{ q }}"{% else %}Search{% endif %}</h1>
+  </div>
+</div>
+
+<form method="get" action="/search" class="panel" style="margin-bottom:1rem">
+  <div class="panel-body field-row" style="align-items:flex-end">
+    <div style="flex:1 1 20rem">
+      <label for="q">Search campus</label>
+      <input id="q" name="q" type="search" value="{{ q }}" autofocus
+             placeholder="A person, a subject, a company, a set of notes">
+    </div>
+    <div style="flex:0 1 12rem">
+      <label for="scope">In</label>
+      <select id="scope" name="scope">
+        {% for value, label in [('all','Everything'),('people','People'),('questions','Questions'),('resources','Notes'),('projects','Projects'),('opportunities','Placements')] %}
+        <option value="{{ value }}" {% if scope == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="flex:0"><button type="submit" class="btn">Search</button></div>
+  </div>
+</form>
+
+{% if results.get('people') %}
+<div class="panel" style="margin-bottom:1rem">
+  <div class="panel-head"><h2>People</h2><a class="right" href="/search?q={{ q }}&amp;scope=people">All</a></div>
+  <div class="board">
+    {% for p in results['people'] %}
+    <article class="row">
+      <div class="row-gutter" style="padding-top:1rem">{{ avatar(p) }}</div>
+      <div class="row-body">
+        <h3 class="row-title"><a href="/u/{{ p.handle }}">{{ p.full_name }}</a></h3>
+        <div class="row-text">{{ p.bio|excerpt(120) }}</div>
+        <div class="row-meta">{{ tier(p) }}<span>{{ identity(p) }}</span></div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if results.get('questions') %}
+<div class="panel" style="margin-bottom:1rem">
+  <div class="panel-head"><h2>Questions</h2><a class="right" href="/search?q={{ q }}&amp;scope=questions">All</a></div>
+  <div class="board">
+    {% for x in results['questions'] %}
+    <article class="row">
+      <div class="row-gutter"><span class="vote-score">{{ x.score }}</span></div>
+      <div class="row-body">
+        <h3 class="row-title"><a href="/qa/{{ x.id }}">{{ x.title }}</a></h3>
+        <div class="row-text">{{ x.body|excerpt(140) }}</div>
+        <div class="row-meta">
+          {% if x.accepted_answer_id %}<span class="stamp stamp--verified">Solved</span>{% endif %}
+          <span>{{ x.answer_count|pluralise('answer') }}</span>
+          {% if x.subject %}<span>{{ x.subject }}</span>{% endif %}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if results.get('resources') %}
+<div class="panel" style="margin-bottom:1rem">
+  <div class="panel-head"><h2>Notes</h2><a class="right" href="/search?q={{ q }}&amp;scope=resources">All</a></div>
+  <div class="board">
+    {% for r in results['resources'] %}
+    <article class="row">
+      <div class="row-gutter"><span class="vote-score">{{ r.score }}</span></div>
+      <div class="row-body">
+        <h3 class="row-title"><a href="/vault/{{ r.id }}">{{ r.title }}</a></h3>
+        <div class="row-meta">
+          {% if r.subject %}<span>{{ r.subject }}</span>{% endif %}
+          {% if r.semester %}<span>Sem {{ r.semester }}</span>{% endif %}
+          {{ chip(r.uploader, show_tier=false) }}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if results.get('projects') %}
+<div class="panel" style="margin-bottom:1rem">
+  <div class="panel-head"><h2>Projects</h2></div>
+  <div class="board">
+    {% for p in results['projects'] %}
+    <article class="row">
+      <div class="row-gutter"></div>
+      <div class="row-body">
+        <h3 class="row-title"><a href="/projects/{{ p.id }}">{{ p.title }}</a></h3>
+        <div class="row-text">{{ p.summary|excerpt(140) }}</div>
+        <div class="row-meta">{{ chip(p.owner, show_tier=false) }}
+          {% for s in p.skills_needed %}<span class="tag">{{ s }}</span>{% endfor %}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if results.get('opportunities') %}
+<div class="panel" style="margin-bottom:1rem">
+  <div class="panel-head"><h2>Placements</h2></div>
+  <div class="board">
+    {% for o in results['opportunities'] %}
+    <article class="row {% if o.is_official %}row--official{% endif %}">
+      <div class="row-gutter"></div>
+      <div class="row-body">
+        <h3 class="row-title"><a href="/opportunities">{{ o.company }} — {{ o.role_title }}</a></h3>
+        <div class="row-meta">
+          {% if o.is_official %}<span class="stamp">Verified</span>{% endif %}
+          <span>{{ o.kind }}</span>
+          {% if o.deadline %}<span class="muted">closes {{ o.deadline|datefmt }}</span>{% endif %}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if q and total == 0 %}
+<div class="panel empty">
+  <h3>Nothing matched</h3>
+  <p>
+    Try fewer words or a different spelling. If you are looking for a person, try
+    <a href="/people?skill={{ q }}">searching by skill</a> instead.
+  </p>
+</div>
+{% elif not q %}
+<div class="panel empty">
+  <h3>Search everything at once</h3>
+  <p>People, questions, notes, projects and placements.</p>
+</div>
+{% endif %}
+{% endblock %}

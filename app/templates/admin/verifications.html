@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Verification queue</h1>
+    <p class="lede">
+      Compare the selfie with the portrait on the card, check the details read correctly,
+      decide. Target is under 24 hours.
+    </p>
+  </div>
+</div>
+
+<div class="tabs">
+  <a href="/admin/verifications" {% if show == 'in_review' %}aria-current="page"{% endif %}>Waiting</a>
+  <a href="/admin/verifications?show=approved" {% if show == 'approved' %}aria-current="page"{% endif %}>Approved</a>
+  <a href="/admin/verifications?show=rejected" {% if show == 'rejected' %}aria-current="page"{% endif %}>Rejected</a>
+</div>
+
+{% if records %}
+<div class="board">
+  {% for r in records %}
+  {% set p = people.get(r.user_id) %}
+  {% set f = r.extracted or {} %}
+  <article class="row">
+    <div class="row-gutter" style="padding-top:1rem">
+      <span class="confidence {% if r.confidence >= 0.8 %}confidence--high{% elif r.confidence < 0.6 %}confidence--low{% endif %}">
+        {{ (r.confidence * 100)|round|int }}%
+      </span>
+    </div>
+    <div class="row-body">
+      <h3 class="row-title" style="font-size:1rem">
+        <a href="/admin/verifications/{{ r.id }}">
+          {{ f.get('full_name') or (p.full_name if p else 'Unknown') }}
+        </a>
+      </h3>
+      <div class="row-meta">
+        <span class="mono">{{ f.get('roll_number') or '—' }}</span>
+        {% if p %}<span>@{{ p.handle }}</span>{% endif %}
+        <span>{{ f.get('course') or '—' }}</span>
+        <span>{{ f.get('batch') or '—' }}</span>
+        <span class="muted">{{ r.created_at|timeago }}</span>
+      </div>
+      <div class="row-meta">
+        {% if r.checks and r.checks.get('soft_fail') %}
+          {% for s in r.checks.get('soft_fail') %}<span class="tag">{{ s }}</span>{% endfor %}
+        {% endif %}
+        {% if r.checks and r.checks.get('student_dispute') %}<span class="stamp">Student flagged an error</span>{% endif %}
+        {% if devices.get(r.id, 0) > 1 %}<span class="stamp">{{ devices[r.id] }} accounts on this device</span>{% endif %}
+        {% if not r.checks or not r.checks.get('live_capture') %}<span class="tag">uploaded, not live</span>{% endif %}
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel empty">
+  <h3>Queue is clear</h3>
+  <p>Nobody is waiting to be verified.</p>
+</div>
+{% endif %}
+{% endblock %}

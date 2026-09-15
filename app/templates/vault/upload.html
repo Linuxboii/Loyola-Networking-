@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width:560px">
+  <div class="page-head"><div><h1>Share notes</h1></div></div>
+
+  <form class="panel" method="post" action="/vault/upload" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <div class="panel-body">
+      <div class="field">
+        <label for="document">File</label>
+        <input id="document" name="document" type="file" accept=".pdf,image/*" required>
+        <div class="hint">PDF or photos, up to 12 MB.</div>
+      </div>
+      <div class="field">
+        <label for="title">Title</label>
+        <input id="title" name="title" type="text" required maxlength="180"
+               placeholder="DBMS unit 3 — normalisation, with worked examples">
+      </div>
+      <div class="field">
+        <label for="description">What is in it</label>
+        <textarea id="description" name="description" rows="3" maxlength="2000"></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="course">Course</label><input id="course" name="course" type="text" placeholder="B.Sc"></div>
+        <div class="field"><label for="semester">Semester</label><input id="semester" name="semester" type="text" placeholder="IV"></div>
+        <div class="field"><label for="subject">Subject</label><input id="subject" name="subject" type="text" placeholder="DBMS"></div>
+      </div>
+      <div class="field" style="max-width:20rem">
+        <label for="kind">Kind</label>
+        <select id="kind" name="kind">
+          {% for k, label in kinds %}<option value="{{ k }}">{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="check">
+          <input type="checkbox" name="attest" value="yes" required>
+          <span>
+            This is my own work, or a question paper the college issued.
+            <div class="hint" style="margin-top:.2rem">
+              Not a textbook, not a solution manual, not paid material. Anyone can file a
+              takedown and the file comes down while it is reviewed.
+            </div>
+          </span>
+        </label>
+      </div>
+    </div>
+    <div class="panel-foot btn-row">
+      <button type="submit" class="btn">Upload</button>
+      <a class="btn btn--ghost" href="/vault">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

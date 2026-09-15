@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Groups and clubs</h1>
+    <p class="lede">Official clubs and informal interest groups. A club's standing comes from what it runs, not how many people joined.</p>
+  </div>
+  {% if can(me, 'create_group') %}
+  <div class="right"><a class="btn" href="/groups/new">Start a group</a></div>
+  {% endif %}
+</div>
+
+<div class="tabs">
+  <a href="/groups" {% if not kind %}aria-current="page"{% endif %}>All</a>
+  <a href="/groups?kind=club" {% if kind == 'club' %}aria-current="page"{% endif %}>Clubs</a>
+  <a href="/groups?kind=interest" {% if kind == 'interest' %}aria-current="page"{% endif %}>Interest groups</a>
+</div>
+
+{% if groups %}
+<div class="board">
+  {% for g in groups %}
+  <article class="row {% if g.is_official %}row--official{% endif %}">
+    <div class="row-gutter"></div>
+    <div class="row-body">
+      <h3 class="row-title"><a href="/groups/{{ g.slug }}">{{ g.name }}</a></h3>
+      <div class="row-text">{{ g.description|excerpt(160) }}</div>
+      <div class="row-meta">
+        {% if g.is_official %}<span class="stamp">Official club</span>{% endif %}
+        <span>{{ g.member_count|pluralise('member') }}</span>
+        {% if g.id in mine %}<span class="tier tier-contributor">Joined</span>{% endif %}
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel empty">
+  <h3>No groups yet</h3>
+  <p>{% if can(me, 'create_group') %}Start the first one.{% else %}Creating groups unlocks at Established standing.{% endif %}</p>
+</div>
+{% endif %}
+{% endblock %}

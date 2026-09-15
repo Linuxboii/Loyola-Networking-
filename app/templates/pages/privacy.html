@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--full{% endblock %}
+
+{% block content %}
+<div class="measure" style="margin:0 auto">
+  <div class="page-head">
+    <div>
+      <h1>Privacy and your data</h1>
+      <p class="lede">
+        This app asks for a photo of your ID card. That is a serious thing to hand over, so
+        here is exactly what happens to it, in plain terms.
+      </p>
+    </div>
+  </div>
+
+  <div class="panel"><div class="panel-body stack-lg">
+
+    <section>
+      <h2>What we collect</h2>
+      <dl class="kv">
+        <dt>ID card photo</dt><dd>To confirm you are enrolled here.</dd>
+        <dt>Selfie</dt><dd>So a reviewer can check the card is yours.</dd>
+        <dt>Name, roll number, course, batch</dt><dd>Read off the card. These become your profile.</dd>
+        <dt>A device signature</dt><dd>A one-way hash, used only to spot one person running several accounts.</dd>
+        <dt>What you post</dt><dd>Posts, answers, votes, endorsements and reports.</dd>
+      </dl>
+      <p class="soft" style="margin-top:.75rem">
+        We do not ask for your phone number or your email address, and we do not need them.
+      </p>
+    </section>
+
+    <section>
+      <h2>How long we keep it</h2>
+      <p>
+        <strong>Your ID card photo and selfie are deleted {{ retention_days }} days after your
+        verification finishes.</strong> Not archived — overwritten and removed. After that we
+        keep only the extracted fields and a one-way hash of the card, which lets us catch the
+        same card being used twice without keeping the card itself.
+      </p>
+      <p>
+        While they exist, both images are encrypted on disk and readable only by the
+        verification code. Every time a reviewer opens one, we record who opened it and when.
+        Reviewers see a cropped portrait and your details by default; seeing the whole card is
+        a separate, logged action.
+      </p>
+      <p>Your posts and reputation history stay until you ask us to remove them.</p>
+    </section>
+
+    <section>
+      <h2>Who can see you</h2>
+      <p>
+        Only verified members of {{ CAMPUS }}. There are no public profiles, nothing is
+        indexed by search engines, and every page — including images — needs you to be
+        signed in. If you would rather not appear in search at all, you can switch that off
+        in your profile settings.
+      </p>
+    </section>
+
+    <section>
+      <h2>Your rights under the DPDP Act, 2023</h2>
+      <p>
+        You consented to this when you created your account, for the stated purpose of
+        campus verification and nothing else. You can withdraw that consent, ask for a copy
+        of what we hold, ask for corrections, or ask us to delete your account from your
+        <a href="/settings/account">account settings</a>.
+      </p>
+      <p>
+        Deletion is handled by a person rather than a button, because answers you wrote may
+        be load-bearing for other students — we will ask whether you want them anonymised or
+        removed outright.
+      </p>
+      <dl class="kv" style="margin-top:.75rem">
+        <dt>Grievance officer</dt><dd>{{ grievance_officer }}</dd>
+        <dt>Contact</dt><dd>{{ grievance_email }}</dd>
+      </dl>
+    </section>
+
+    <section>
+      <h2>What this app is not</h2>
+      <p>
+        It is not run by the college, and it does not speak for the college. It holds no
+        official record, and nothing here affects your marks, attendance or standing as a
+        student.
+      </p>
+    </section>
+
+  </div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import chip, anon_chip %}
+
+{% block content %}
+<p class="muted" style="margin-bottom:.6rem"><a href="/qa">← All questions</a></p>
+
+{% if request.query_params.get('from') %}
+<div class="flash flash-warn">
+  You were sent here from a duplicate question. The answers are collected on this one.
+</div>
+{% endif %}
+
+<article class="panel">
+  <div class="panel-body">
+    <h1>{{ question.title }}</h1>
+    <div class="row-meta" style="margin-bottom:1rem">
+      {% if question.is_anonymous %}{{ anon_chip() }}{% else %}{{ chip(question.author) }}{% endif %}
+      <span>{{ question.created_at|timeago }}</span>
+      {% if question.subject %}<span>{{ question.subject }}</span>{% endif %}
+      {% if question.semester %}<a href="/qa/archive/{{ question.semester }}">Semester {{ question.semester }}</a>{% endif %}
+      <span class="muted">{{ question.view_count|pluralise('view') }}</span>
+    </div>
+
+    <div style="display:flex;gap:1rem;align-items:flex-start">
+      <div>
+        {% with target_type='question', target_id=question.id, score=question.score, my_vote=my_votes.get(question.id, 0) %}
+          {% include "components/_vote.html" %}
+        {% endwith %}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="measure">{{ question.body|richtext }}</div>
+        <div class="row-meta" style="margin-top:.75rem">
+          {% for t in question.tags %}<a class="tag" href="/qa?tag={{ t }}">#{{ t }}</a>{% endfor %}
+          <a class="muted" href="/report?type=question&amp;id={{ question.id }}">Report</a>
+          {% if question.author_id == me.id or me.is_moderator %}
+          <form method="post" action="/qa/{{ question.id }}/close" style="display:inline"
+                data-confirm="Close this question?">
+            <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+            <button class="btn btn--ghost btn--sm" type="submit">Close</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</article>
+
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head">
+    <h2>{{ answers|length|pluralise('answer') }}</h2>
+    {% if question.accepted_answer_id %}<span class="right stamp stamp--verified">Solved</span>{% endif %}
+  </div>
+
+  <div class="panel-body">
+    {% for a in answers %}
+    <div class="comment" id="a{{ a.id }}"
+         style="{% if a.is_accepted %}border-left:3px solid var(--verified);padding-left:.75rem{% endif %}">
+      <div style="display:flex;gap:1rem;align-items:flex-start">
+        <div>
+          {% with target_type='answer', target_id=a.id, score=a.score, my_vote=my_answer_votes.get(a.id, 0) %}
+            {% include "components/_vote.html" %}
+          {% endwith %}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="comment-head">
+            {{ chip(a.author) }}
+            <span class="muted">{{ a.created_at|timeago }}</span>
+            {% if a.is_accepted %}<span class="stamp stamp--verified">Accepted answer</span>{% endif %}
+          </div>
+          <div class="measure">{{ a.body|richtext }}</div>
+          <div class="row-meta" style="margin-top:.4rem">
+            {% if (question.author_id == me.id or me.is_moderator) and not a.is_accepted and question.status == 'active' %}
+            <form method="post" action="/qa/{{ question.id }}/accept/{{ a.id }}" style="display:inline">
+              <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+              <button class="btn btn--ghost btn--sm" type="submit">Mark as the solution</button>
+            </form>
+            {% endif %}
+            <a class="muted" href="/report?type=answer&amp;id={{ a.id }}">Report</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty" style="padding:1.5rem">
+      <h3>No answers yet</h3>
+      <p>If you know this one, you are the person who fixes it for everyone after you.</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if me.tier >= 2 and question.status == 'active' %}
+  <div class="panel-body" style="border-top:1px solid var(--rule)">
+    <form method="post" action="/qa/{{ question.id }}/answers">
+      <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+      <div class="field">
+        <label for="answer-body">Your answer</label>
+        <textarea id="answer-body" name="body" rows="6" required minlength="10"
+                  placeholder="Explain it the way you would to a friend in the lab."></textarea>
+      </div>
+      <button type="submit" class="btn">Post answer</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+{% if related %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head">
+    <h2>Related</h2>
+    {% if can(me, 'merge_duplicates') %}
+    <span class="right muted" style="font-size:.8rem">You can merge duplicates</span>
+    {% endif %}
+  </div>
+  <div class="panel-body">
+    <ul class="list-plain">
+      {% for r in related %}
+      <li>
+        <a href="/qa/{{ r.id }}">{{ r.title }}</a>
+        <span class="muted">— {{ r.answer_count|pluralise('answer') }}</span>
+        {% if can(me, 'merge_duplicates') %}
+        <form method="post" action="/qa/{{ question.id }}/duplicate" style="display:inline"
+              data-confirm="Mark this question as a duplicate of that one?">
+          <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+          <input type="hidden" name="canonical_id" value="{{ r.id }}">
+          <button class="btn btn--ghost btn--sm" type="submit">Merge into this</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

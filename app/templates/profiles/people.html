@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import avatar, tier, identity %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Find people</h1>
+    <p class="lede">
+      Search by name, or by what someone can actually do. This is the thing WhatsApp groups
+      cannot do.
+    </p>
+  </div>
+</div>
+
+<form class="panel" method="get" action="/people" style="margin-bottom:1rem">
+  <div class="panel-body">
+    <div class="field-row">
+      <div><label for="q">Name or bio</label><input id="q" name="q" type="search" value="{{ q }}"></div>
+      <div><label for="skill">Skill</label>
+        <input id="skill" name="skill" type="text" list="skill-list" value="{{ skill }}" placeholder="flutter">
+        <datalist id="skill-list">
+          {% for s in top_skills %}<option value="{{ s.name }}">{% endfor %}
+        </datalist>
+      </div>
+      <div><label for="department">Department</label>
+        <select id="department" name="department">
+          <option value="">Any</option>
+          {% for d in departments %}<option value="{{ d }}" {% if d == department %}selected{% endif %}>{{ d }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label for="batch">Batch</label><input id="batch" name="batch" type="number" value="{{ batch }}" placeholder="2027"></div>
+      <div><label for="tier">Standing</label>
+        <select id="tier" name="tier">
+          <option value="">Any</option>
+          {% for label, threshold in REP_TIERS %}
+          <option value="{{ label }}" {% if label == tier %}selected{% endif %}>{{ label }} and above</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <button type="submit" class="btn btn--sm">Search</button>
+  </div>
+</form>
+
+{% if results %}
+<div class="board">
+  {% for p in results %}
+  <article class="row">
+    <div class="row-gutter" style="padding-top:1rem">{{ avatar(p) }}</div>
+    <div class="row-body">
+      <h3 class="row-title"><a href="/u/{{ p.handle }}">{{ p.full_name }}</a></h3>
+      <div class="row-text">{{ p.bio|excerpt(140) }}</div>
+      <div class="row-meta">
+        {{ tier(p) }}
+        <span>{{ identity(p) }}</span>
+        {% if p.department %}<span>{{ p.department }}</span>{% endif %}
+        {% for role in p.roles or [] %}<span class="role-badge">{{ role.replace('_',' ')|capitalize }}</span>{% endfor %}
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel empty">
+  <h3>No matches</h3>
+  {% if q or skill or department or batch %}
+  <p>Try a broader search, or <a href="/people">clear the filters</a>.</p>
+  {% else %}
+  <p>Nobody has verified yet. You could be first.</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

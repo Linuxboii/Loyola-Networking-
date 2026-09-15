@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import avatar, tier, identity %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Mentors</h1>
+    <p class="lede">
+      Seniors who have offered short one-to-one sessions. Ask for thirty minutes about one
+      specific thing — that is what works.
+    </p>
+  </div>
+</div>
+
+{% if my_sessions %}
+<div class="panel" style="margin-bottom:1rem">
+  <div class="panel-head"><h2>Your sessions</h2></div>
+  <div class="panel-body">
+    {% for s in my_sessions %}
+    {% set other = people.get(s.mentee_id if s.mentor_id == me.id else s.mentor_id) %}
+    <div class="comment">
+      <div class="comment-head">
+        <strong>{{ s.topic }}</strong>
+        <span class="muted">
+          with {% if other %}<a href="/u/{{ other.handle }}">{{ other.full_name }}</a>{% else %}someone{% endif %}
+          {% if s.mentor_id == me.id %}(you are mentoring){% endif %}
+        </span>
+        <span class="right tag">{{ s.status }}</span>
+      </div>
+      {% if s.note %}<p class="soft" style="margin:.25rem 0">{{ s.note }}</p>{% endif %}
+      {% if s.scheduled_at %}<p class="muted" style="font-size:.85rem">{{ s.scheduled_at|timefmt }}</p>{% endif %}
+
+      <div class="btn-row">
+        {% if s.status == 'requested' and s.mentor_id == me.id %}
+          {% for action, label in [('accepted', 'Accept'), ('declined', 'Decline')] %}
+          <form method="post" action="/mentors/sessions/{{ s.id }}/respond">
+            <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+            <input type="hidden" name="action" value="{{ action }}">
+            <button type="submit" class="btn btn--ghost btn--sm">{{ label }}</button>
+          </form>
+          {% endfor %}
+        {% elif s.status in ('accepted', 'completed') and not s.credited %}
+          {% set mine_confirmed = s.mentor_confirmed if s.mentor_id == me.id else s.mentee_confirmed %}
+          {% if mine_confirmed %}
+          <span class="muted" style="font-size:.85rem">You confirmed. Waiting for the other side.</span>
+          {% else %}
+          <form method="post" action="/mentors/sessions/{{ s.id }}/confirm">
+            <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+            <button type="submit" class="btn btn--ghost btn--sm">Confirm it happened</button>
+          </form>
+          {% endif %}
+        {% elif s.credited %}
+          <span class="tier tier-contributor">Completed</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="panel" style="margin-bottom:1rem">
+  <div class="panel-head"><h2>{{ 'Your mentor listing' if mine else 'Offer to mentor' }}</h2></div>
+  <div class="panel-body">
+    {% if can(me, 'mentor') %}
+    <form method="post" action="/mentors/opt-in">
+      <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+      <div class="field">
+        <label for="domains">What you can help with</label>
+        <input id="domains" name="domains" type="text" placeholder="placements dsa flutter"
+               value="{{ mine.domains|join(' ') if mine else '' }}">
+      </div>
+      <div class="field">
+        <label for="blurb">A line about what to ask you</label>
+        <textarea id="blurb" name="blurb" rows="2" maxlength="1000">{{ mine.blurb if mine else '' }}</textarea>
+      </div>
+      <div class="field-row" style="align-items:flex-end">
+        <div class="field" style="flex:0 1 10rem">
+          <label for="capacity">Sessions a month</label>
+          <input id="capacity" name="capacity" type="number" min="1" max="20"
+                 value="{{ mine.capacity_per_month if mine else 4 }}">
+        </div>
+        <div class="field">
+          <label class="check">
+            <input type="checkbox" name="active" {% if not mine or mine.active %}checked{% endif %}>
+            <span>Taking requests right now</span>
+          </label>
+        </div>
+        <div style="flex:0"><button type="submit" class="btn">{{ 'Update' if mine else 'List me as a mentor' }}</button></div>
+      </div>
+    </form>
+    {% else %}
+    <p class="muted">Mentoring unlocks at Established standing — it is a responsibility, not a badge.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if mentors %}
+<div class="board">
+  {% for m in mentors %}
+  <article class="row">
+    <div class="row-gutter" style="padding-top:1rem">{{ avatar(m.user) }}</div>
+    <div class="row-body">
+      <h3 class="row-title"><a href="/u/{{ m.user.handle }}">{{ m.user.full_name }}</a></h3>
+      <div class="row-text">{{ m.blurb|excerpt(180) }}</div>
+      <div class="row-meta">
+        {{ tier(m.user) }}
+        <span>{{ identity(m.user) }}</span>
+        {% if m.sessions_done %}<span class="muted">{{ m.sessions_done|pluralise('session') }} done</span>{% endif %}
+        {% for d in m.domains %}<a class="tag" href="/mentors?domain={{ d }}">{{ d }}</a>{% endfor %}
+      </div>
+
+      {% if m.user_id != me.id and me.tier >= 2 %}
+      <details style="margin-top:.6rem">
+        <summary class="soft">Ask for a session</summary>
+        <form method="post" action="/mentors/{{ m.user_id }}/request" style="margin-top:.6rem">
+          <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+          <div class="field">
+            <label for="topic-{{ m.id }}">What do you want to talk about</label>
+            <input id="topic-{{ m.id }}" name="topic" type="text" required maxlength="160"
+                   placeholder="How to prepare for the Infosys interview">
+          </div>
+          <div class="field">
+            <label for="note-{{ m.id }}">Anything else</label>
+            <textarea id="note-{{ m.id }}" name="note" rows="2"></textarea>
+          </div>
+          <div class="field" style="max-width:16rem">
+            <label for="when-{{ m.id }}">Suggested time</label>
+            <input id="when-{{ m.id }}" name="when" type="datetime-local">
+          </div>
+          <button type="submit" class="btn btn--sm">Send request</button>
+        </form>
+      </details>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel empty">
+  <h3>No mentors listed yet</h3>
+  <p>If you are a third or fourth year, this is the highest-leverage thing on here for juniors.</p>
+</div>
+{% endif %}
+{% endblock %}

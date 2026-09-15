@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import chip, avatar, tier %}
+
+{% block content %}
+<p class="muted" style="margin-bottom:.6rem"><a href="/projects">← Project board</a></p>
+
+<div class="panel">
+  <div class="panel-body">
+    <h1>{{ project.title }}</h1>
+    <div class="row-meta" style="margin-bottom:1rem">
+      {{ chip(project.owner) }}
+      <span>{{ project.created_at|timeago }}</span>
+      {% if project.artifact_verified %}<span class="stamp stamp--verified">Shipped</span>{% endif %}
+      {% if project.status == 'closed' %}<span class="muted">Closed to applications</span>{% endif %}
+    </div>
+
+    {% if project.summary %}<p class="measure soft">{{ project.summary }}</p>{% endif %}
+    <div class="measure">{{ project.description|richtext }}</div>
+
+    {% if project.repo_url or project.demo_url or project.video_url %}
+    <div class="btn-row" style="margin-top:1rem">
+      {% if project.repo_url %}<a class="btn btn--ghost btn--sm" href="{{ project.repo_url }}" rel="noopener nofollow" target="_blank">Repo</a>{% endif %}
+      {% if project.demo_url %}<a class="btn btn--ghost btn--sm" href="{{ project.demo_url }}" rel="noopener nofollow" target="_blank">Live</a>{% endif %}
+      {% if project.video_url %}<a class="btn btn--ghost btn--sm" href="{{ project.video_url }}" rel="noopener nofollow" target="_blank">Demo video</a>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if project.skills_needed %}
+    <div class="row-meta" style="margin-top:1rem">
+      {% for s in project.skills_needed %}<a class="tag" href="/people?skill={{ s }}">{{ s }}</a>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% if is_owner %}
+  <div class="panel-foot btn-row">
+    <form method="post" action="/projects/{{ project.id }}/status">
+      <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+      <input type="hidden" name="status" value="{{ 'closed' if project.status == 'open' else 'open' }}">
+      <button type="submit" class="btn btn--ghost btn--sm">
+        {{ 'Close applications' if project.status == 'open' else 'Reopen applications' }}
+      </button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+{% if roles %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Roles</h2></div>
+  <div class="panel-body">
+    <table>
+      <thead><tr><th>Role</th><th>Skills</th><th class="right">Slots</th></tr></thead>
+      <tbody>
+        {% for r in roles %}
+        <tr>
+          <td>{{ r.title }}</td>
+          <td>{% for s in r.skills %}<span class="tag">{{ s }}</span> {% endfor %}</td>
+          <td class="right mono">{{ r.filled }} / {{ r.slots }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if not is_owner and project.status == 'open' and me.tier >= 2 %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Apply</h2></div>
+  <div class="panel-body">
+    {% if my_application %}
+    <p>
+      You applied {{ my_application.created_at|timeago }} —
+      <strong>{{ my_application.status }}</strong>.
+    </p>
+    {% elif not eligible %}
+    <p class="muted">This project asks for {{ project.min_rep_tier }} standing. You are {{ me.rep_tier }}.</p>
+    {% elif not can(me, 'join_project_board') %}
+    <p class="muted">Joining project boards unlocks at Contributor standing.</p>
+    {% else %}
+    <form method="post" action="/projects/{{ project.id }}/apply">
+      <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+      {% if roles %}
+      <div class="field" style="max-width:20rem">
+        <label for="role_id">Role</label>
+        <select id="role_id" name="role_id">
+          <option value="">Any</option>
+          {% for r in roles %}
+          <option value="{{ r.id }}" {% if r.filled >= r.slots %}disabled{% endif %}>
+            {{ r.title }}{% if r.filled >= r.slots %} — full{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="field">
+        <label for="message">Why you</label>
+        <textarea id="message" name="message" rows="4"
+                  placeholder="What you have built before, and what you would take on here."></textarea>
+      </div>
+      <button type="submit" class="btn">Send application</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if is_owner and applications %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>{{ applications|length|pluralise('application') }}</h2></div>
+  <div class="panel-body">
+    {% for a in applications %}
+    <div class="comment">
+      <div class="comment-head">
+        {{ avatar(a.applicant, 'avatar--sm') }}
+        <a href="/u/{{ a.applicant.handle }}">{{ a.applicant.full_name }}</a>
+        {{ tier(a.applicant) }}
+        <span class="muted">{{ a.created_at|timeago }}</span>
+        <span class="right muted">{{ a.status }}</span>
+      </div>
+      <p class="measure">{{ a.message|richtext }}</p>
+      {% if a.status == 'pending' %}
+      <div class="btn-row">
+        {% for decision, label in [('accepted', 'Accept'), ('declined', 'Decline')] %}
+        <form method="post" action="/projects/{{ project.id }}/applications/{{ a.id }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+          <input type="hidden" name="decision" value="{{ decision }}">
+          <button type="submit" class="btn btn--ghost btn--sm">{{ label }}</button>
+        </form>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

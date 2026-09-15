@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import chip %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Resource vault</h1>
+    <p class="lede">Notes, past papers and lab manuals, sorted by subject. Your own work only.</p>
+  </div>
+  {% if me.tier >= 2 %}
+  <div class="right"><a class="btn" href="/vault/upload">Share notes</a></div>
+  {% endif %}
+</div>
+
+<form method="get" action="/vault" class="panel" style="margin-bottom:1rem">
+  <div class="panel-body field-row" style="align-items:flex-end">
+    <div><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}"></div>
+    <div><label for="subject">Subject</label><input id="subject" name="subject" type="text" value="{{ subject }}"></div>
+    <div><label for="semester">Semester</label><input id="semester" name="semester" type="text" value="{{ semester }}"></div>
+    <div><label for="kind">Kind</label>
+      <select id="kind" name="kind">
+        <option value="">Any</option>
+        {% for k, label in kinds %}<option value="{{ k }}" {% if kind == k %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div style="flex:0"><button type="submit" class="btn btn--ghost">Filter</button></div>
+  </div>
+</form>
+
+{% if resources %}
+<div class="board">
+  {% for r in resources %}
+  <article class="row">
+    <div class="row-gutter">
+      <form method="post" action="/vault/{{ r.id }}/vote">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        <div class="vote">
+          <button type="submit" aria-pressed="{{ 'true' if r.id in my_votes else 'false' }}"
+                  aria-label="Mark useful" title="This was useful">▲</button>
+          <span class="vote-score">{{ r.score }}</span>
+        </div>
+      </form>
+    </div>
+    <div class="row-body">
+      <h3 class="row-title"><a href="/vault/{{ r.id }}">{{ r.title }}</a></h3>
+      <div class="row-text">{{ r.description|excerpt(140) }}</div>
+      <div class="row-meta">
+        {{ chip(r.uploader, show_tier=false) }}
+        <span>{{ dict(kinds).get(r.kind, r.kind) }}</span>
+        {% if r.subject %}<span>{{ r.subject }}</span>{% endif %}
+        {% if r.semester %}<span>Sem {{ r.semester }}</span>{% endif %}
+        {% if r.version > 1 %}<span class="muted">v{{ r.version }}</span>{% endif %}
+        <span class="muted">{{ r.download_count|pluralise('open') }}</span>
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel empty">
+  <h3>Nothing here yet</h3>
+  <p>The vault is only as good as what people put in. Your DBMS notes will save someone a week.</p>
+  {% if me.tier >= 2 %}
+  <div class="btn-row" style="justify-content:center"><a class="btn" href="/vault/upload">Share notes</a></div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block rail %}
+<aside class="col-rail rail">
+  <div class="rail-block">
+    <h2 class="rail-title">What belongs here</h2>
+    <p class="soft" style="font-size:.85rem;margin:0">
+      Notes you wrote. Past papers the college issued. Summaries and cheat sheets you made.
+    </p>
+    <p class="soft" style="font-size:.85rem;margin:.6rem 0 0">
+      <strong>Not</strong> textbook scans, solution manuals or paid course material. Those get
+      taken down and cost you standing.
+    </p>
+  </div>
+</aside>
+{% endblock %}

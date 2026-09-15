@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width:620px">
+  <div class="page-head">
+    <div>
+      <h1>Write up an interview</h1>
+      <p class="lede">
+        What they asked, in what order, and how it went. This is the single most useful thing
+        a final-year can leave behind — and it is worth 40 points.
+      </p>
+    </div>
+  </div>
+
+  <form class="panel" method="post" action="/opportunities/interviews/new">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <div class="panel-body">
+      <div class="field-row">
+        <div class="field"><label for="company">Company</label><input id="company" name="company" type="text" required maxlength="120"></div>
+        <div class="field"><label for="role_title">Role</label><input id="role_title" name="role_title" type="text" required maxlength="140"></div>
+        <div class="field" style="flex:0 1 10rem">
+          <label for="verdict">Outcome</label>
+          <select id="verdict" name="verdict">
+            <option value="selected">Selected</option>
+            <option value="rejected">Rejected</option>
+            <option value="pending">Still waiting</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="rounds">Rounds</label>
+        <textarea id="rounds" name="rounds" rows="4"
+                  placeholder="Online test: 20 aptitude, 10 DSA, 90 minutes&#10;Technical 1: DBMS joins, one coding question on arrays&#10;HR: standard"></textarea>
+        <div class="hint">One per line, as <span class="mono">Round name: what happened</span>.</div>
+      </div>
+
+      <div class="field">
+        <label for="body">The full story</label>
+        <textarea id="body" name="body" rows="10" required minlength="80"
+                  placeholder="How you prepared, the exact questions you remember, what you would do differently."></textarea>
+        <div class="hint">Specifics help. "It was easy" helps nobody.</div>
+      </div>
+    </div>
+    <div class="panel-foot btn-row">
+      <button type="submit" class="btn">Publish</button>
+      <a class="btn btn--ghost" href="/opportunities">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--full{% endblock %}
+
+{% macro report_table(data) %}
+<div class="field-row" style="gap:2rem">
+  <div>
+    <h4>Reports by category</h4>
+    {% if data.reports_by_category %}
+    <table>
+      {% for k, v in data.reports_by_category.items() %}
+      <tr><td>{{ k.replace('_', ' ')|capitalize }}</td><td class="right mono">{{ v }}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted">None.</p>{% endif %}
+  </div>
+  <div>
+    <h4>Outcomes</h4>
+    {% if data.reports_by_status %}
+    <table>
+      {% for k, v in data.reports_by_status.items() %}
+      <tr><td>{{ k.replace('_', ' ')|capitalize }}</td><td class="right mono">{{ v }}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted">None.</p>{% endif %}
+  </div>
+  <div>
+    <h4>Actions taken</h4>
+    {% if data.actions %}
+    <table>
+      {% for k, v in data.actions.items() %}
+      <tr><td>{{ k.replace('_', ' ')|capitalize }}</td><td class="right mono">{{ v }}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted">None.</p>{% endif %}
+  </div>
+</div>
+<div class="stat-row" style="margin-top:1rem">
+  <div>
+    <span class="stat-value">{{ data.median_resolution_hours if data.median_resolution_hours is not none else '—' }}</span>
+    <span class="stat-label">median hours to resolve</span>
+  </div>
+  <div><span class="stat-value">{{ data.appeals_total }}</span><span class="stat-label">appeals filed</span></div>
+  <div><span class="stat-value">{{ data.appeals_upheld }}</span><span class="stat-label">appeals upheld</span></div>
+</div>
+{% endmacro %}
+
+{% block content %}
+<div style="max-width:860px;margin:0 auto">
+  <div class="page-head">
+    <div>
+      <h1>Transparency report</h1>
+      <p class="lede">
+        What was reported, what was done about it, and how long it took. Published every month
+        whether the numbers are flattering or not.
+      </p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>{{ live_period }} so far</h2></div>
+    <div class="panel-body">{{ report_table(live) }}</div>
+  </div>
+
+  {% for snap in snapshots %}
+  <div class="panel" style="margin-top:1rem">
+    <div class="panel-head"><h2>{{ snap.period }}</h2></div>
+    <div class="panel-body">{{ report_table(snap.data) }}</div>
+  </div>
+  {% endfor %}
+
+  {% if not snapshots %}
+  <p class="muted" style="margin-top:1rem">
+    Past months appear here once the first full month has closed.
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

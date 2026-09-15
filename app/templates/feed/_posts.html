@@ -1,0 +1,7 @@
+{% for post in posts %}
+  {% set group = none %}
+  {% include "feed/_post_row.html" %}
+{% endfor %}
+{% if has_more %}
+<span hidden data-next-url="{{ request.url.include_query_params(page=page + 1) }}"></span>
+{% endif %}

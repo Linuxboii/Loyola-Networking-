@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import avatar, tier, identity %}
+
+{% block content %}
+<div class="panel">
+  <div class="panel-body">
+    <div style="display:flex;gap:1.25rem;align-items:flex-start;flex-wrap:wrap">
+      {{ avatar(person, 'avatar--lg') }}
+      <div style="flex:1;min-width:14rem">
+        <h1 style="margin-bottom:.15rem">{{ person.full_name }}</h1>
+        <p class="muted" style="margin-bottom:.4rem">
+          @{{ person.handle }}{% if person.roll_number and (is_self or me.is_moderator) %} · <span class="mono">{{ person.roll_number }}</span>{% endif %}
+        </p>
+        <p class="soft" style="margin-bottom:.5rem">
+          {{ identity(person) }}{% if person.department %} · {{ person.department }}{% endif %}
+        </p>
+        <div class="row-meta">
+          {{ tier(person) }}
+          {% for role in person.roles or [] %}
+          <span class="role-badge">{{ role.replace('_', ' ')|capitalize }}</span>
+          {% endfor %}
+          {% if person.tier >= 2 %}<span class="stamp stamp--verified">ID verified</span>{% endif %}
+        </div>
+        {% if person.bio %}<p class="measure" style="margin-top:.75rem">{{ person.bio|richtext }}</p>{% endif %}
+        {% if person.links %}
+        <p class="row-meta" style="margin-top:.5rem">
+          {% for key, url in person.links.items() %}
+          <a href="{{ url }}" rel="noopener nofollow" target="_blank">{{ key|capitalize }}</a>
+          {% endfor %}
+        </p>
+        {% endif %}
+      </div>
+      <div>
+        {% if is_self %}
+        <a class="btn btn--ghost btn--sm" href="/me/edit">Edit profile</a>
+        <a class="btn btn--ghost btn--sm" href="/me/reputation">Your ledger</a>
+        {% else %}
+        <a class="btn btn--ghost btn--sm" href="/report?type=user&amp;id={{ person.id }}">Report</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head">
+    <h2>Skills</h2>
+    {% if can_endorse %}<span class="right muted" style="font-size:.82rem">Endorse what you have seen them do</span>{% endif %}
+  </div>
+  <div class="panel-body">
+    {% if skills %}
+    <div style="display:flex;flex-wrap:wrap;gap:.45rem">
+      {% for s in skills %}
+      {% if can_endorse %}
+      <form method="post" action="/u/{{ person.handle }}/endorse/{{ s.skill_id }}" style="display:inline">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        <button type="submit" class="btn btn--ghost btn--sm"
+                title="{{ 'Withdraw your endorsement' if s.skill_id in my_endorsements else 'Endorse this skill' }}"
+                style="{% if s.skill_id in my_endorsements %}border-color:var(--verified);color:var(--verified){% endif %}">
+          {{ s.skill.name }}{% if s.endorsement_count %} · {{ s.endorsement_count }}{% endif %}
+        </button>
+      </form>
+      {% else %}
+      <span class="tag" style="padding:.25rem .5rem">
+        {{ s.skill.name }}{% if s.endorsement_count %} · {{ s.endorsement_count }}{% endif %}
+      </span>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">
+      {% if is_self %}<a href="/me/edit">Add the things you can actually do</a> — this is how people find you.
+      {% else %}None listed yet.{% endif %}
+    </p>
+    {% endif %}
+  </div>
+</div>
+
+{% if hidden %}
+<div class="panel empty" style="margin-top:1rem">
+  <h3>Activity hidden</h3>
+  <p>This member has chosen not to show their activity.</p>
+</div>
+{% else %}
+
+{% if answers %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Answers</h2></div>
+  <div class="board">
+    {% for a, q in answers %}
+    <article class="row">
+      <div class="row-gutter"><span class="vote-score">{{ a.score }}</span></div>
+      <div class="row-body">
+        <h3 class="row-title"><a href="/qa/{{ q.id }}#a{{ a.id }}">{{ q.title }}</a></h3>
+        <div class="row-text">{{ a.body|excerpt(160) }}</div>
+        <div class="row-meta">
+          {% if a.is_accepted %}<span class="stamp stamp--verified">Accepted</span>{% endif %}
+          <span>{{ a.created_at|timeago }}</span>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if projects %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Projects</h2></div>
+  <div class="board">
+    {% for p in projects %}
+    <article class="row">
+      <div class="row-gutter"></div>
+      <div class="row-body">
+        <h3 class="row-title"><a href="/projects/{{ p.id }}">{{ p.title }}</a></h3>
+        {% if p.summary %}<div class="row-text">{{ p.summary }}</div>{% endif %}
+        <div class="row-meta">
+          {% if p.artifact_verified %}<span class="stamp stamp--verified">Shipped</span>{% endif %}
+          {% if p.repo_url %}<a href="{{ p.repo_url }}" rel="noopener nofollow" target="_blank">Repo</a>{% endif %}
+          {% if p.demo_url %}<a href="{{ p.demo_url }}" rel="noopener nofollow" target="_blank">Live</a>{% endif %}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if events_hosted %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Events organised</h2></div>
+  <div class="board">
+    {% for e in events_hosted %}
+    <article class="row">
+      <div class="row-gutter"></div>
+      <div class="row-body">
+        <h3 class="row-title"><a href="/events/{{ e.id }}">{{ e.title }}</a></h3>
+        <div class="row-meta">
+          <span>{{ e.starts_at|datefmt }}</span>
+          <span>{{ e.checkin_count }} checked in</span>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if posts %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Recent posts</h2></div>
+  <div class="board">
+    {% set my_votes = {} %}
+    {% for post in posts %}{% set group = none %}{% include "feed/_post_row.html" %}{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if not answers and not projects and not posts and not events_hosted %}
+<div class="panel empty" style="margin-top:1rem">
+  <h3>Nothing here yet</h3>
+  <p>{% if is_self %}Answer a question and it shows up here.{% else %}This member has not posted yet.{% endif %}</p>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}
+
+{% block rail %}
+<aside class="col-rail rail">
+  <div class="rail-block">
+    <h2 class="rail-title">Standing</h2>
+    <p style="margin:0 0 .6rem">{{ tier(person) }}</p>
+    {% for p in breakdown %}
+    <div class="pillar">
+      <div class="pillar-head">
+        <span style="font-size:.78rem">{{ PILLAR_LABELS[p.pillar] }}</span>
+        {% if is_self %}<span class="mono">{{ p.value|round|int }}</span>{% endif %}
+      </div>
+      <div class="pillar-track">
+        <div class="pillar-fill pillar-fill--{{ p.pillar }}" style="width:{{ (p.ratio * 100)|round|int }}%"></div>
+      </div>
+    </div>
+    {% endfor %}
+    <p class="muted" style="font-size:.78rem;margin-top:.6rem">
+      {% if is_self %}Only you can see your numbers.{% else %}Shown as shape, not score.{% endif %}
+    </p>
+  </div>
+
+  <div class="rail-block">
+    <h2 class="rail-title">On campus</h2>
+    <div class="stat-row">
+      <div><span class="stat-value">{{ attended }}</span><span class="stat-label">events attended</span></div>
+    </div>
+    <p class="muted" style="font-size:.8rem;margin:.5rem 0 0">
+      Joined {{ person.created_at|datefmt('%b %Y') }}
+    </p>
+  </div>
+</aside>
+{% endblock %}

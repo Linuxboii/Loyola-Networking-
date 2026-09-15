@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import chip %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Placements and internships</h1>
+    <p class="lede">
+      Openings, referrals and what people were actually asked in interviews.
+    </p>
+  </div>
+  <div class="right"><a class="btn btn--ghost" href="/opportunities/interviews/new">Write up an interview</a></div>
+</div>
+
+{% if me.tier >= 2 %}
+<details class="panel" style="margin-bottom:1rem">
+  <summary class="panel-head" style="cursor:pointer"><h2 style="margin:0">Post an opening</h2></summary>
+  <form method="post" action="/opportunities/new">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <div class="panel-body">
+      <div class="field-row">
+        <div class="field"><label for="company">Company</label><input id="company" name="company" type="text" required maxlength="120"></div>
+        <div class="field"><label for="role_title">Role</label><input id="role_title" name="role_title" type="text" required maxlength="140"></div>
+        <div class="field" style="flex:0 1 12rem">
+          <label for="kind">Type</label>
+          <select id="kind" name="kind">{% for k, label in kinds %}<option value="{{ k }}">{{ label }}</option>{% endfor %}</select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="location">Location</label><input id="location" name="location" type="text"></div>
+        <div class="field"><label for="stipend">Pay</label><input id="stipend" name="stipend" type="text" placeholder="₹25,000/month"></div>
+        <div class="field" style="flex:0 1 12rem"><label for="deadline">Closes</label><input id="deadline" name="deadline" type="date"></div>
+      </div>
+      <div class="field"><label for="description">Details</label><textarea id="description" name="description" rows="3"></textarea></div>
+      <div class="field-row">
+        <div class="field"><label for="apply_url">Apply link</label><input id="apply_url" name="apply_url" type="url"></div>
+        <div class="field"><label for="skills">Skills</label><input id="skills" name="skills" type="text" placeholder="python sql"></div>
+      </div>
+      <button type="submit" class="btn">Post opening</button>
+    </div>
+  </form>
+</details>
+{% endif %}
+
+<div class="tabs">
+  <a href="/opportunities" {% if not kind and not official %}aria-current="page"{% endif %}>All</a>
+  <a href="/opportunities?official=1" {% if official == '1' %}aria-current="page"{% endif %}>Verified only</a>
+  {% for k, label in kinds %}
+  <a href="/opportunities?kind={{ k }}" {% if kind == k %}aria-current="page"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</div>
+
+{% if live %}
+<div class="board">
+  {% for o in live %}
+  <article class="row {% if o.is_official %}row--official{% endif %}">
+    <div class="row-gutter"></div>
+    <div class="row-body">
+      <h3 class="row-title">{{ o.company }} — {{ o.role_title }}</h3>
+      <div class="row-text">{{ o.description|excerpt(200) }}</div>
+      <div class="row-meta">
+        {% if o.is_official %}<span class="stamp">Verified</span>{% endif %}
+        <span>{{ dict(kinds).get(o.kind, o.kind) }}</span>
+        {% if o.location %}<span>{{ o.location }}</span>{% endif %}
+        {% if o.stipend %}<span>{{ o.stipend }}</span>{% endif %}
+        {% if o.deadline %}<span class="muted">closes {{ o.deadline|datefmt }}</span>{% endif %}
+        {{ chip(o.poster, show_tier=false) }}
+        {% if o.apply_url %}<a href="{{ o.apply_url }}" rel="noopener nofollow" target="_blank">Apply</a>{% endif %}
+      </div>
+      <div class="row-meta">
+        {% for s in o.skills %}<span class="tag">{{ s }}</span>{% endfor %}
+      </div>
+      {% if me.is_moderator or o.poster_id == me.id %}
+      <div class="btn-row" style="margin-top:.5rem">
+        {% if me.is_moderator %}
+        <form method="post" action="/opportunities/{{ o.id }}/verify">
+          <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+          <button type="submit" class="btn btn--ghost btn--sm">
+            {{ 'Remove verification' if o.is_official else 'Mark verified' }}
+          </button>
+        </form>
+        {% endif %}
+        <form method="post" action="/opportunities/{{ o.id }}/close" data-confirm="Close this listing?">
+          <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+          <button type="submit" class="btn btn--ghost btn--sm">Close</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel empty">
+  <h3>Nothing open right now</h3>
+  <p>Got a referral you can give? Post it — that is the most valuable thing on this page.</p>
+</div>
+{% endif %}
+
+{% if experiences %}
+<div class="panel" style="margin-top:1.5rem">
+  <div class="panel-head">
+    <h2>Interview experiences</h2>
+    <a class="right" href="/opportunities/interviews/new">Add yours</a>
+  </div>
+  <div class="board">
+    {% for e in experiences %}
+    <article class="row">
+      <div class="row-gutter"></div>
+      <div class="row-body">
+        <h3 class="row-title">
+          <a href="/opportunities/interviews/{{ e.id }}">{{ e.company }} — {{ e.role_title }}</a>
+        </h3>
+        <div class="row-text">{{ e.body|excerpt(160) }}</div>
+        <div class="row-meta">
+          {{ chip(e.author, show_tier=false) }}
+          <span class="tag">{{ e.verdict }}</span>
+          <span>{{ e.rounds|length|pluralise('round') }}</span>
+          <span class="muted">{{ e.created_at|timeago }}</span>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if expired %}
+<details style="margin-top:1rem">
+  <summary class="muted">{{ expired|length }} closed listings</summary>
+  <div class="board" style="margin-top:.5rem">
+    {% for o in expired %}
+    <article class="row">
+      <div class="row-gutter"></div>
+      <div class="row-body">
+        <h3 class="row-title" style="font-size:.95rem">{{ o.company }} — {{ o.role_title }}</h3>
+        <div class="row-meta"><span class="muted">closed {{ o.deadline|datefmt }}</span></div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</details>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import avatar, tier %}
+
+{% block content %}
+<div class="panel {% if group.is_official %}row--official{% endif %}">
+  {% if group.banner_path %}
+  <img src="{{ group.banner_path|media_url }}" alt="" style="width:100%;max-height:180px;object-fit:cover;display:block">
+  {% endif %}
+  <div class="panel-body">
+    <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
+      <div style="flex:1;min-width:14rem">
+        <h1 style="margin-bottom:.2rem">{{ group.name }}</h1>
+        <div class="row-meta" style="margin-bottom:.5rem">
+          {% if group.is_official %}<span class="stamp">Official club</span>{% endif %}
+          <span>{{ group.member_count|pluralise('member') }}</span>
+          {% if group.club_rep %}<span class="muted">Club standing {{ group.club_rep|round|int }}</span>{% endif %}
+        </div>
+        <p class="measure">{{ group.description|richtext }}</p>
+      </div>
+      <div class="btn-row">
+        <form method="post" action="/groups/{{ group.slug }}/join">
+          <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+          <button type="submit" class="btn {% if membership %}btn--ghost{% endif %}">
+            {{ 'Leave group' if membership else 'Join group' }}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if events %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Coming up</h2></div>
+  <div class="board">
+    {% for e in events %}
+    <article class="row">
+      <div class="row-gutter"></div>
+      <div class="row-body">
+        <h3 class="row-title"><a href="/events/{{ e.id }}">{{ e.title }}</a></h3>
+        <div class="row-meta"><span>{{ e.starts_at|timefmt }}</span>{% if e.venue %}<span>{{ e.venue }}</span>{% endif %}</div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if membership and me.tier >= 2 %}
+<form class="panel" method="post" action="/posts" enctype="multipart/form-data" style="margin-top:1rem">
+  <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+  <input type="hidden" name="group_id" value="{{ group.id }}">
+  <div class="panel-body">
+    <div class="field" style="margin-bottom:.6rem">
+      <label for="group-body">Post to {{ group.name }}</label>
+      <textarea id="group-body" name="body" rows="2" required></textarea>
+    </div>
+    <button type="submit" class="btn btn--sm">Post</button>
+  </div>
+</form>
+{% endif %}
+
+{% if posts %}
+<div class="board" style="margin-top:1rem">
+  {% for post in posts %}{% include "feed/_post_row.html" %}{% endfor %}
+</div>
+{% else %}
+<div class="panel empty" style="margin-top:1rem">
+  <h3>Nothing posted here yet</h3>
+  <p>{% if membership %}Start the conversation.{% else %}Join to post.{% endif %}</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block rail %}
+<aside class="col-rail rail">
+  <div class="rail-block">
+    <h2 class="rail-title">Members</h2>
+    <ul class="list-plain">
+      {% for m in members %}
+      <li style="display:flex;align-items:center;gap:.5rem">
+        {{ avatar(m, 'avatar--sm') }}
+        <a href="/u/{{ m.handle }}" style="flex:1;min-width:0">{{ m.full_name }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  {% if membership and membership.role in ('admin', 'officer') %}
+  <div class="rail-block">
+    <h2 class="rail-title">Group settings</h2>
+    <form method="post" action="/groups/{{ group.slug }}/settings" enctype="multipart/form-data">
+      <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+      <div class="field">
+        <label for="g-desc">Description</label>
+        <textarea id="g-desc" name="description" rows="3">{{ group.description }}</textarea>
+      </div>
+      <div class="field">
+        <label for="g-banner">Banner</label>
+        <input id="g-banner" name="banner" type="file" accept="image/*">
+      </div>
+      <button type="submit" class="btn btn--ghost btn--sm">Save</button>
+    </form>
+  </div>
+  {% endif %}
+</aside>
+{% endblock %}

@@ -1,0 +1,8 @@
+{# Replaced in place by app.js after a vote; also renders on first paint. #}
+<div class="vote" data-vote-box data-target-type="{{ target_type }}" data-target-id="{{ target_id }}">
+  <button type="button" data-vote="1" aria-pressed="{{ 'true' if my_vote == 1 else 'false' }}"
+          aria-label="Upvote" title="This was useful">▲</button>
+  <span class="vote-score">{{ score }}</span>
+  <button type="button" class="down" data-vote="-1" aria-pressed="{{ 'true' if my_vote == -1 else 'false' }}"
+          aria-label="Downvote" title="This was not useful">▼</button>
+</div>

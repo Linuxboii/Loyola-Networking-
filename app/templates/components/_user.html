@@ -1,0 +1,33 @@
+{% macro avatar(user, size='') -%}
+{%- if user.photo_path -%}
+<img class="avatar {{ size }}" src="{{ user.photo_path|media_url }}" alt="">
+{%- else -%}
+<span class="avatar {{ size }}" aria-hidden="true">{{ user.full_name|initials }}</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro tier(user) -%}
+<span class="tier {{ tier_colour(user.rep_tier) }}" title="Earned by contributing, not by popularity">{{ user.rep_tier }}</span>
+{%- endmacro %}
+
+{% macro chip(user, show_tier=true) -%}
+<a class="row-meta-user" href="/u/{{ user.handle }}" style="display:inline-flex;align-items:center;gap:.4rem;text-decoration:none">
+  {{ avatar(user, 'avatar--sm') }}<span>{{ user.full_name }}</span>
+</a>
+{%- if show_tier %} {{ tier(user) }}{% endif -%}
+{%- for role in user.roles or [] %}
+  {%- if role in ('moderator', 'admin', 'club_officer') %}
+  <span class="role-badge">{{ {'moderator':'Moderator','admin':'Admin','club_officer':'Club officer'}[role] }}</span>
+  {%- endif -%}
+{%- endfor -%}
+{%- endmacro %}
+
+{% macro anon_chip() -%}
+<span style="display:inline-flex;align-items:center;gap:.4rem">
+  <span class="avatar avatar--sm" aria-hidden="true">?</span><span class="muted">Asked anonymously</span>
+</span>
+{%- endmacro %}
+
+{% macro identity(user) -%}
+{{ user.course or '' }}{% if user.course and user.batch_year %} · {% endif %}{% if user.batch_year %}Batch of {{ user.batch_year }}{% endif %}
+{%- endmacro %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--full{% endblock %}
+
+{% block content %}
+<div style="max-width:680px;margin:0 auto">
+  <div class="page-head">
+    <div>
+      <h1>Semester Wrapped</h1>
+      <p class="lede">{{ period }} — what you put in, not what you scrolled past.</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-body">
+      <div class="stat-row" style="gap:2rem">
+        <div><span class="stat-value">{{ answers }}</span><span class="stat-label">answers written</span></div>
+        <div><span class="stat-value">{{ accepted }}</span><span class="stat-label">marked as the solution</span></div>
+        <div><span class="stat-value">{{ questions }}</span><span class="stat-label">questions asked</span></div>
+        <div><span class="stat-value">{{ posts }}</span><span class="stat-label">posts</span></div>
+        <div><span class="stat-value">{{ resources }}</span><span class="stat-label">notes shared</span></div>
+        <div><span class="stat-value">{{ events_attended }}</span><span class="stat-label">events attended</span></div>
+      </div>
+    </div>
+    <div class="panel-foot">
+      <strong>{{ earned }} points earned this semester.</strong>
+      Strongest pillar: {{ PILLAR_LABELS[top_pillar] }}.
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:1rem">
+    <div class="panel-head"><h2>Where it came from</h2></div>
+    <div class="panel-body">
+      {% for p in breakdown %}
+      <div class="pillar">
+        <div class="pillar-head">
+          <span>{{ PILLAR_LABELS[p.pillar] }}</span>
+          <span class="mono">{{ p.value|round|int }}</span>
+        </div>
+        <div class="pillar-track">
+          <div class="pillar-fill pillar-fill--{{ p.pillar }}" style="width:{{ (p.ratio * 100)|round|int }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if answers == 0 and posts == 0 and resources == 0 %}
+  <div class="panel empty" style="margin-top:1rem">
+    <h3>Nothing to recap yet</h3>
+    <p>Answer one question and this page starts filling in.</p>
+    <div class="btn-row" style="justify-content:center">
+      <a class="btn" href="/qa?filter=unanswered">Find a question to answer</a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

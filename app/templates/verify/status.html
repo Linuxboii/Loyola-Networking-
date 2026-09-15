@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--full{% endblock %}
+{% block nav %}{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;margin:0 auto">
+  {% set status = record.status if record else 'none' %}
+
+  {% if status == 'in_review' %}
+    <div class="page-head">
+      <div>
+        <h1>With a reviewer now</h1>
+        <p class="lede">
+          A moderator compares your selfie to the photo on your card. This usually takes a few
+          hours and always under a day.
+        </p>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-body stack">
+        {% if queue_position %}
+        <p><strong>You are number {{ queue_position }} in the queue.</strong></p>
+        {% endif %}
+        <p class="soft">
+          Meanwhile you can read everything on the site. Posting, commenting and voting open
+          up once you are approved.
+        </p>
+        <div class="btn-row"><a class="btn" href="/">Start reading</a></div>
+      </div>
+    </div>
+
+  {% elif status == 'approved' %}
+    <div class="page-head">
+      <div>
+        <h1>You are verified</h1>
+        <p class="lede">Full access is open. Post, answer, vote, and show up in search.</p>
+      </div>
+    </div>
+    <div class="panel"><div class="panel-body stack">
+      <p class="soft">
+        Your ID photo will be deleted on
+        <strong>{{ record.purge_after|datefmt }}</strong>. After that we keep only your name,
+        roll number, course and batch.
+      </p>
+      <div class="btn-row">
+        <a class="btn" href="/">Go to the feed</a>
+        <a class="btn btn--ghost" href="/u/{{ request.state.user.handle }}">Set up your profile</a>
+      </div>
+    </div></div>
+
+  {% elif status == 'rejected' %}
+    <div class="page-head">
+      <div>
+        <h1>Not approved</h1>
+        <p class="lede">{{ record.decision_reason }}</p>
+      </div>
+    </div>
+    <div class="panel"><div class="panel-body stack">
+      <p class="soft">If you think this is a mistake, a moderator will look again.</p>
+      <div class="btn-row">
+        <a class="btn" href="/verify">Try again</a>
+        <a class="btn btn--ghost" href="/support">Ask for help</a>
+      </div>
+    </div></div>
+
+  {% elif status == 'needs_selfie' %}
+    <div class="page-head"><div><h1>One step left</h1></div></div>
+    <div class="panel"><div class="panel-body">
+      <p>We have read your card. Add a selfie and a reviewer takes it from there.</p>
+      <div class="btn-row"><a class="btn" href="/verify/confirm">Take the selfie</a></div>
+    </div></div>
+
+  {% else %}
+    <div class="page-head"><div><h1>Not started</h1></div></div>
+    <div class="panel"><div class="panel-body">
+      <p>Verify your ID card to get in.</p>
+      <div class="btn-row"><a class="btn" href="/verify">Start verifying</a></div>
+    </div></div>
+  {% endif %}
+</div>
+{% endblock %}

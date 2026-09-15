@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Shared devices</h1>
+    <p class="lede">
+      Browsers that have signed into more than one account. A shared lab machine looks exactly
+      like this, so treat it as a question rather than an answer.
+    </p>
+  </div>
+</div>
+
+{% if rows %}
+<div class="panel"><div class="panel-body">
+  {% for fp, count, last_seen in rows %}
+  <div class="comment">
+    <div class="comment-head">
+      <span class="mono">{{ fp[:16] }}…</span>
+      <span class="tag">{{ count }} accounts</span>
+      <span class="right muted">{{ last_seen|timeago }}</span>
+    </div>
+    <div class="row-meta">
+      {% for u in detail.get(fp, []) %}
+      <a href="/u/{{ u.handle }}">{{ u.full_name }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div></div>
+{% else %}
+<div class="panel empty">
+  <h3>Nothing to look at</h3>
+  <p>No browser has signed into more than one account.</p>
+</div>
+{% endif %}
+{% endblock %}

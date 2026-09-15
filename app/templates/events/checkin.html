@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--full{% endblock %}
+
+{% block content %}
+<div style="max-width:520px;margin:0 auto">
+  <div class="page-head">
+    <div>
+      <h1>Check-in</h1>
+      <p class="lede">{{ event.title }} · {{ checked }} of {{ event.rsvp_count }} checked in</p>
+    </div>
+  </div>
+
+  <form class="panel" method="post" action="/events/{{ event.id }}/checkin">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <div class="panel-body">
+      <div class="field">
+        <label for="code">Ticket code</label>
+        <input id="code" name="code" type="text" required autofocus autocomplete="off"
+               class="mono" placeholder="12-34-A1B2C3D4E5" style="font-size:1.1rem">
+        <div class="hint">
+          Scan the attendee's QR with any phone camera and paste the code, or type it from
+          their screen.
+        </div>
+      </div>
+      <button type="submit" class="btn btn--block">Check in</button>
+    </div>
+  </form>
+
+  <p class="muted" style="margin-top:1rem;font-size:.86rem">
+    Attendance credits 5 points. Volunteering credits 50. Both only on a scan — this is the
+    check that keeps the Community Service pillar honest.
+  </p>
+  <p><a href="/events/{{ event.id }}">← Back to the event</a></p>
+</div>
+{% endblock %}

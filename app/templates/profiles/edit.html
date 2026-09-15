@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Edit your profile</h1>
+    <p class="lede">
+      Your name, course, department and batch come from your verified ID card and cannot be
+      changed here. Everything else is yours.
+    </p>
+  </div>
+</div>
+
+<form class="panel" method="post" action="/me/edit" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+  <div class="panel-body">
+    <div class="field">
+      <label for="photo">Profile photo</label>
+      <input id="photo" name="photo" type="file" accept="image/*">
+      <div class="hint">Optional. Your ID card photo is never used here.</div>
+    </div>
+
+    <div class="field">
+      <label for="bio">Bio</label>
+      <textarea id="bio" name="bio" rows="3" maxlength="1000"
+                placeholder="What you are working on, what you can help with.">{{ me.bio }}</textarea>
+      <div class="hint"><span data-count-for="bio"></span></div>
+    </div>
+
+    <div class="field">
+      <label for="interests">Interests</label>
+      <input id="interests" name="interests" type="text"
+             value="{{ me.interests|join(' ') }}" placeholder="ml placements football">
+      <div class="hint">Used to rank your feed and pick what goes in your weekly digest.</div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="github">GitHub</label>
+        <input id="github" name="github" type="url" value="{{ me.links.get('github', '') }}">
+      </div>
+      <div class="field">
+        <label for="linkedin">LinkedIn</label>
+        <input id="linkedin" name="linkedin" type="url" value="{{ me.links.get('linkedin', '') }}">
+      </div>
+      <div class="field">
+        <label for="portfolio">Portfolio</label>
+        <input id="portfolio" name="portfolio" type="url" value="{{ me.links.get('portfolio', '') }}">
+      </div>
+    </div>
+
+    <h3 style="margin-top:1.25rem">Privacy</h3>
+    <div class="field">
+      <label class="check">
+        <input type="checkbox" name="hide_from_search" {% if me.hide_from_search %}checked{% endif %}>
+        <span>Keep me out of people search</span>
+      </label>
+      <label class="check" style="margin-top:.4rem">
+        <input type="checkbox" name="hide_activity" {% if me.hide_activity %}checked{% endif %}>
+        <span>Hide my posts and answers from my profile</span>
+      </label>
+    </div>
+    <div class="field" style="max-width:20rem">
+      <label for="endorse_policy">Who can endorse my skills</label>
+      <select id="endorse_policy" name="endorse_policy">
+        <option value="anyone" {% if me.endorse_policy == 'anyone' %}selected{% endif %}>Anyone verified</option>
+        <option value="batch" {% if me.endorse_policy == 'batch' %}selected{% endif %}>Only my batch</option>
+        <option value="nobody" {% if me.endorse_policy == 'nobody' %}selected{% endif %}>Nobody</option>
+      </select>
+    </div>
+  </div>
+  <div class="panel-foot btn-row">
+    <button type="submit" class="btn">Save changes</button>
+    <a class="btn btn--ghost" href="/u/{{ me.handle }}">Cancel</a>
+  </div>
+</form>
+
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Skills</h2></div>
+  <div class="panel-body">
+    <p class="soft measure" style="margin-bottom:.75rem">
+      List what you can actually do. Peers endorse these, and the team finder searches them.
+    </p>
+    <div style="display:flex;flex-wrap:wrap;gap:.45rem;margin-bottom:1rem">
+      {% for s in skills %}
+      <form method="post" action="/me/skills/{{ s.skill_id }}/remove" style="display:inline">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        <button type="submit" class="btn btn--ghost btn--sm" title="Remove">
+          {{ s.skill.name }}{% if s.endorsement_count %} · {{ s.endorsement_count }}{% endif %} ✕
+        </button>
+      </form>
+      {% else %}
+      <p class="muted">None yet.</p>
+      {% endfor %}
+    </div>
+
+    <form method="post" action="/me/skills" class="field-row" style="align-items:flex-end">
+      <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+      <div style="flex:1 1 16rem">
+        <label for="skill-name">Add a skill</label>
+        <input id="skill-name" name="name" type="text" list="all-skills" required maxlength="50">
+        <datalist id="all-skills">
+          {% for s in all_skills %}<option value="{{ s.name }}">{% endfor %}
+        </datalist>
+      </div>
+      <div style="flex:0"><button type="submit" class="btn btn--ghost">Add</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="max-width:560px">
+<div class="page-head"><div><h1>Account</h1></div></div>
+
+{% if request.query_params.get('changed') %}<div class="flash flash-ok">Password changed. Every other session was signed out.</div>{% endif %}
+{% if request.query_params.get('saved') %}<div class="flash flash-ok">Saved.</div>{% endif %}
+{% if request.query_params.get('delete_requested') %}<div class="flash flash-warn">Deletion requested. A moderator will contact you about what happens to your answers.</div>{% endif %}
+{% if request.query_params.get('delete_error') %}<div class="flash flash-error">Type your username exactly to confirm.</div>{% endif %}
+
+<div class="panel"><div class="panel-body">
+  <dl class="kv">
+    <dt>Name</dt><dd>{{ me.full_name }}</dd>
+    <dt>Username</dt><dd>@{{ me.handle }}</dd>
+    {% if me.roll_number %}<dt>Roll number</dt><dd class="mono">{{ me.roll_number }}</dd>{% endif %}
+    <dt>Verification</dt><dd>{{ ['Not verified','Provisional','Verified','Role verified'][me.tier] }}</dd>
+  </dl>
+  <p class="hint" style="margin-top:.75rem">
+    Your name and roll number come from your ID card and can only be changed by a moderator.
+  </p>
+</div></div>
+
+<form class="panel" method="post" action="/settings/password" style="margin-top:1rem">
+  <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+  <div class="panel-head"><h2>Change password</h2></div>
+  <div class="panel-body">
+    <div class="field"><label for="current">Current password</label><input id="current" name="current" type="password" required autocomplete="current-password"></div>
+    <div class="field"><label for="password">New password</label><input id="password" name="password" type="password" required autocomplete="new-password">
+      <div class="hint">At least 10 characters, with a letter and a number.</div></div>
+    <div class="field"><label for="password2">New password again</label><input id="password2" name="password2" type="password" required autocomplete="new-password"></div>
+  </div>
+  <div class="panel-foot"><button type="submit" class="btn">Change password</button></div>
+</form>
+
+<form class="panel" method="post" action="/settings/recovery-email" style="margin-top:1rem">
+  <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+  <div class="panel-head"><h2>Recovery email</h2></div>
+  <div class="panel-body">
+    <div class="field">
+      <label for="email">Email address</label>
+      <input id="email" name="email" type="email" value="{{ me.recovery_email or '' }}">
+      <div class="hint">
+        Optional and <strong>not verified</strong> — we never send anything to it. It only
+        gives a moderator a way to reach you if you are locked out.
+      </div>
+    </div>
+  </div>
+  <div class="panel-foot"><button type="submit" class="btn btn--ghost">Save</button></div>
+</form>
+
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Signed-in devices</h2></div>
+  <div class="panel-body">
+    <ul class="list-plain">
+      {% for s in sessions %}
+      <li>
+        <div style="display:flex;gap:.5rem;align-items:baseline">
+          <span>{{ s.user_agent|excerpt(60) or 'Unknown device' }}</span>
+          {% if s.token_hash == current_hash %}<span class="tier tier-contributor">This device</span>{% endif %}
+          <span class="right muted" style="font-size:.82rem">{{ s.created_at|timeago }}</span>
+        </div>
+        {% if s.token_hash != current_hash %}
+        <form method="post" action="/settings/sessions/{{ s.id }}/revoke" style="display:inline">
+          <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+          <button type="submit" class="btn btn--ghost btn--sm">Sign out</button>
+        </form>
+        {% endif %}
+      </li>
+      {% else %}<li class="muted">None.</li>{% endfor %}
+    </ul>
+  </div>
+</div>
+
+<div class="panel" style="margin-top:1rem;border-left:3px solid var(--stamp)">
+  <div class="panel-head"><h2>Delete your account</h2></div>
+  <div class="panel-body">
+    <p class="soft measure">
+      Your ID photo is already scheduled for deletion. This removes the rest. Answers other
+      students rely on are anonymised rather than erased — a moderator will confirm with you
+      first.
+    </p>
+    <form method="post" action="/settings/delete-account" data-confirm="Request deletion of your account?">
+      <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+      <div class="field" style="max-width:18rem">
+        <label for="confirm">Type <span class="mono">{{ me.handle }}</span> to confirm</label>
+        <input id="confirm" name="confirm" type="text" required>
+      </div>
+      <button type="submit" class="btn btn--ghost btn--sm">Request deletion</button>
+    </form>
+  </div>
+</div>
+
+<form method="post" action="/logout" style="margin-top:1rem">
+  <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+  <button type="submit" class="btn btn--ghost">Sign out</button>
+</form>
+</div>
+{% endblock %}

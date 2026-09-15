@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import chip %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Study rooms</h1>
+    <p class="lede">Someone is revising the thing you are stuck on. Sit with them.</p>
+  </div>
+</div>
+
+{% if can(me, 'host_study_room') %}
+<details class="panel" style="margin-bottom:1rem">
+  <summary class="panel-head" style="cursor:pointer"><h2 style="margin:0">Start a room</h2></summary>
+  <form method="post" action="/study-rooms/new">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <div class="panel-body">
+      <div class="field">
+        <label for="topic">What are you working on</label>
+        <input id="topic" name="topic" type="text" required maxlength="160" placeholder="Operating systems unit 2 revision">
+      </div>
+      <div class="field-row">
+        <div class="field" style="flex:0 1 10rem">
+          <label for="mode">Where</label>
+          <select id="mode" name="mode"><option value="physical">On campus</option><option value="virtual">Online</option></select>
+        </div>
+        <div class="field"><label for="location">Place or link</label><input id="location" name="location" type="text" placeholder="Library, table 4"></div>
+        <div class="field" style="flex:0 1 14rem"><label for="starts_at">Starts</label><input id="starts_at" name="starts_at" type="datetime-local" required></div>
+      </div>
+      <div class="field-row">
+        <div class="field" style="flex:0 1 9rem"><label for="duration_min">Minutes</label><input id="duration_min" name="duration_min" type="number" value="60" min="15" max="480"></div>
+        <div class="field" style="flex:0 1 9rem"><label for="capacity">Seats</label><input id="capacity" name="capacity" type="number" value="8" min="2" max="50"></div>
+        <div class="field"><label for="tags">Tags</label><input id="tags" name="tags" type="text" placeholder="os sem4"></div>
+      </div>
+      <div class="field"><label for="detail">Anything else</label><textarea id="detail" name="detail" rows="2"></textarea></div>
+      <button type="submit" class="btn">Create room</button>
+    </div>
+  </form>
+</details>
+{% endif %}
+
+{% if rooms %}
+<div class="board">
+  {% for r in rooms %}
+  <article class="row">
+    <div class="row-gutter" style="padding-top:1rem">
+      <span class="vote-score">{{ r.starts_at.strftime('%H:%M') }}</span>
+      <span class="muted" style="font-size:.7rem">{{ r.starts_at.strftime('%d %b') }}</span>
+    </div>
+    <div class="row-body">
+      <h3 class="row-title">{{ r.topic }}</h3>
+      {% if r.detail %}<div class="row-text">{{ r.detail|excerpt(160) }}</div>{% endif %}
+      <div class="row-meta">
+        {{ chip(r.host, show_tier=false) }}
+        <span>{{ 'Online' if r.mode == 'virtual' else r.location or 'On campus' }}</span>
+        <span>{{ r.duration_min }} min</span>
+        <span class="muted">{{ r.member_count }} / {{ r.capacity }}</span>
+        {% for t in r.tags %}<a class="tag" href="/study-rooms?tag={{ t }}">#{{ t }}</a>{% endfor %}
+      </div>
+      {% if me.tier >= 2 %}
+      <div class="btn-row" style="margin-top:.5rem">
+        {% if r.host_id == me.id %}
+        <form method="post" action="/study-rooms/{{ r.id }}/cancel" data-confirm="Cancel this room?">
+          <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+          <button type="submit" class="btn btn--ghost btn--sm">Cancel room</button>
+        </form>
+        {% else %}
+        <form method="post" action="/study-rooms/{{ r.id }}/join">
+          <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+          <button type="submit" class="btn btn--ghost btn--sm"
+                  {% if r.member_count >= r.capacity and r.id not in joined %}disabled{% endif %}>
+            {% if r.id in joined %}Leave{% elif r.member_count >= r.capacity %}Full{% else %}Join{% endif %}
+          </button>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel empty">
+  <h3>No rooms scheduled</h3>
+  <p>{% if can(me, 'host_study_room') %}Start one — someone else is revising the same thing.{% else %}Hosting unlocks at Established standing.{% endif %}</p>
+</div>
+{% endif %}
+{% endblock %}

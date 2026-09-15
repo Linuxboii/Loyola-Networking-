@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width:620px">
+  <div class="page-head"><div><h1>Host an event</h1></div></div>
+  <form class="panel" method="post" action="/events/new">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <div class="panel-body">
+      <div class="field">
+        <label for="title">Title</label>
+        <input id="title" name="title" type="text" required maxlength="160">
+      </div>
+      <div class="field">
+        <label for="description">What happens</label>
+        <textarea id="description" name="description" rows="4" maxlength="4000"></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="starts_at">Starts</label>
+          <input id="starts_at" name="starts_at" type="datetime-local" required>
+        </div>
+        <div class="field">
+          <label for="ends_at">Ends</label>
+          <input id="ends_at" name="ends_at" type="datetime-local">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="venue">Venue</label>
+          <input id="venue" name="venue" type="text" maxlength="160" placeholder="Seminar Hall, Block B">
+        </div>
+        <div class="field">
+          <label for="capacity">Capacity</label>
+          <input id="capacity" name="capacity" type="number" min="1" placeholder="Leave blank for no limit">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="group_id">On behalf of</label>
+          <select id="group_id" name="group_id">
+            <option value="">Just me</option>
+            {% for g in groups %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="tags">Tags</label>
+          <input id="tags" name="tags" type="text" placeholder="workshop tech">
+        </div>
+      </div>
+      <p class="hint">
+        Everyone who RSVPs gets a QR ticket. Scanning it at the door is what credits
+        attendance and volunteering — nobody can claim those points without it.
+      </p>
+    </div>
+    <div class="panel-foot btn-row">
+      <button type="submit" class="btn">Create event</button>
+      <a class="btn btn--ghost" href="/events">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

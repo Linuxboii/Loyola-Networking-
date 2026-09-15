@@ -1,0 +1,45 @@
+{% from "components/_user.html" import chip, avatar %}
+
+<article class="row {% if post.is_official %}row--official{% endif %}" id="post-{{ post.id }}">
+  <div class="row-gutter">
+    {% with target_type='post', target_id=post.id, score=post.score, my_vote=my_votes.get(post.id, 0) %}
+      {% include "components/_vote.html" %}
+    {% endwith %}
+  </div>
+
+  <div class="row-body">
+    <div class="row-meta" style="margin-bottom:.35rem">
+      {{ chip(post.author) }}
+      <span>{{ post.created_at|timeago }}</span>
+      {% if post.kind not in ('text', 'image') %}
+      <span class="kind kind--{{ post.kind }}">{{ post.kind|capitalize }}</span>
+      {% endif %}
+      {% if post.is_official %}<span class="stamp">Official notice</span>{% endif %}
+      {% if group %}<a href="/groups/{{ group.slug }}">{{ group.name }}</a>{% endif %}
+    </div>
+
+    {% if post.title %}
+    <h3 class="row-title"><a href="/p/{{ post.id }}">{{ post.title }}</a></h3>
+    {% endif %}
+
+    {% if post.body %}
+    <div class="row-text">{{ post.body|excerpt(320)|richtext }}</div>
+    {% endif %}
+
+    {% if post.link_url %}
+    <p class="row-text"><a href="{{ post.link_url }}" rel="noopener nofollow ugc" target="_blank">{{ post.link_url|excerpt(70) }}</a></p>
+    {% endif %}
+
+    {% if post.media %}
+    <div class="row-media">
+      <img src="{{ post.media[0].path|media_url }}" alt="" loading="lazy">
+    </div>
+    {% endif %}
+
+    <div class="row-meta">
+      <a href="/p/{{ post.id }}">{{ post.comment_count|pluralise('reply', 'replies') }}</a>
+      {% for t in post.tags %}<a class="tag" href="/?tag={{ t }}">#{{ t }}</a>{% endfor %}
+      <a class="right muted" href="/report?type=post&amp;id={{ post.id }}">Report</a>
+    </div>
+  </div>
+</article>

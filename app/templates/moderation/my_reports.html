@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><h1>Reports you filed</h1>
+<p class="lede">You are told the outcome of each one.</p></div></div>
+
+{% if request.query_params.get('filed') %}<div class="flash flash-ok">Report sent. A moderator will look at it.</div>{% endif %}
+{% if request.query_params.get('dup') %}<div class="flash flash-warn">You already reported that.</div>{% endif %}
+
+{% if reports %}
+<div class="board">
+  {% for r in reports %}
+  <article class="row">
+    <div class="row-gutter" style="padding-top:1rem"><span class="kind">{{ r.status }}</span></div>
+    <div class="row-body">
+      <h3 class="row-title" style="font-size:.98rem">{{ r.category.replace('_',' ')|capitalize }} on a {{ r.target_type }}</h3>
+      {% if r.detail %}<div class="row-text">{{ r.detail|excerpt(160) }}</div>{% endif %}
+      {% if r.resolution %}<div class="row-text soft"><strong>Outcome:</strong> {{ r.resolution }}</div>{% endif %}
+      <div class="row-meta"><span>{{ r.created_at|timeago }}</span>
+      {% if r.resolved_at %}<span class="muted">resolved {{ r.resolved_at|timeago }}</span>{% endif %}</div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel empty"><h3>You have not reported anything</h3><p>Every post and comment has a Report link.</p></div>
+{% endif %}
+{% endblock %}

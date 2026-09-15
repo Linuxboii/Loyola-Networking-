@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import avatar %}
+
+{% block content %}
+
+{% if me.tier >= 2 %}
+<form class="panel" method="post" action="/posts" enctype="multipart/form-data" style="margin-bottom:1rem">
+  <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+  <div class="panel-body">
+    <div style="display:flex;gap:.75rem;align-items:flex-start">
+      {{ avatar(me) }}
+      <div style="flex:1;min-width:0">
+        <div class="field" style="margin-bottom:.6rem">
+          <label class="sr-only" for="body" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">What is happening on campus?</label>
+          <textarea id="body" name="body" rows="2" placeholder="Share something with campus" style="min-height:3.2rem"></textarea>
+        </div>
+
+        <div class="field-row" style="margin-bottom:.6rem">
+          <div>
+            <label for="kind">Type</label>
+            <select id="kind" name="kind" data-kind-picker>
+              <option value="text">Post</option>
+              <option value="image">Photo</option>
+              <option value="link">Link</option>
+              <option value="poll" {% if not can(me, 'create_poll') %}disabled{% endif %}>
+                Poll{% if not can(me, 'create_poll') %} — needs Contributor{% endif %}
+              </option>
+              {% if me.is_moderator or 'club_officer' in (me.roles or []) %}
+              <option value="notice">Official notice</option>
+              {% endif %}
+            </select>
+          </div>
+          <div>
+            <label for="tags">Tags</label>
+            <input id="tags" name="tags" type="text" placeholder="placements dbms fest">
+          </div>
+        </div>
+
+        <div class="field" data-for-kind="link" hidden>
+          <label for="link_url">Link</label>
+          <input id="link_url" name="link_url" type="url" placeholder="https://">
+        </div>
+
+        <div class="field" data-for-kind="image notice" hidden>
+          <label for="image">Image</label>
+          <input id="image" name="image" type="file" accept="image/*">
+        </div>
+
+        <div class="field" data-for-kind="poll notice" hidden>
+          <label for="title">Title</label>
+          <input id="title" name="title" type="text" maxlength="200">
+        </div>
+
+        <div class="field" data-for-kind="poll" hidden>
+          <label for="poll_options">Poll options</label>
+          <textarea id="poll_options" name="poll_options" rows="3" placeholder="One option per line"></textarea>
+        </div>
+
+        <div class="btn-row">
+          <button type="submit" class="btn">Post</button>
+          <a class="btn btn--ghost" href="/qa/ask">Ask a question instead</a>
+          {% if not can(me, 'unlimited_posting') %}
+          <span class="muted">Newcomers post 5 times a day</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endif %}
+
+<div class="tabs">
+  <a href="/" {% if mode != 'foryou' and not kind %}aria-current="page"{% endif %}>Latest</a>
+  <a href="/?mode=foryou" {% if mode == 'foryou' %}aria-current="page"{% endif %}>For you</a>
+  <a href="/?kind=notice" {% if kind == 'notice' %}aria-current="page"{% endif %}>Notices</a>
+  <a href="/?kind=event" {% if kind == 'event' %}aria-current="page"{% endif %}>Events</a>
+  {% if tag %}<a href="/?tag={{ tag }}" aria-current="page">#{{ tag }}</a>{% endif %}
+</div>
+
+{% if posts %}
+<div class="board">
+  {% include "feed/_posts.html" %}
+</div>
+{% if has_more %}
+<div class="center" style="margin-top:1rem">
+  <button class="btn btn--ghost" data-more="{{ request.url.include_query_params(page=page + 1) }}" data-target=".board">
+    Show more
+  </button>
+</div>
+{% endif %}
+
+{% else %}
+<div class="panel empty">
+  <h3>Nothing here yet</h3>
+  {% if tag %}
+  <p>No posts tagged <strong>#{{ tag }}</strong>. <a href="/">See everything</a></p>
+  {% else %}
+  <p>The feed fills up as people post. Be the one who starts it.</p>
+  <div class="btn-row" style="justify-content:center">
+    <a class="btn" href="/qa/ask">Ask the first question</a>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block rail %}
+<aside class="col-rail rail">
+  <div class="rail-block">
+    <h2 class="rail-title">Your standing</h2>
+    <p style="margin:0 0 .35rem"><span class="tier {{ tier_colour(me.rep_tier) }}">{{ me.rep_tier }}</span></p>
+    {% set prog = tier_progress(me) %}
+    {% if prog.label %}
+    <div class="muted" style="font-size:.84rem">{{ prog.remaining }} points to {{ prog.label }}</div>
+    <div class="progress-track"><div class="progress-fill" style="width:{{ prog.percent }}%"></div></div>
+    {% else %}
+    <div class="muted" style="font-size:.84rem">Top tier reached.</div>
+    {% endif %}
+    <p style="margin:.6rem 0 0"><a href="/me/reputation" style="font-size:.86rem">See how you earned it</a></p>
+  </div>
+
+  {% if stats %}
+  <div class="rail-block">
+    <h2 class="rail-title">Campus</h2>
+    <div class="stat-row">
+      <div><span class="stat-value">{{ stats.verified_members }}</span><span class="stat-label">verified</span></div>
+      <div><span class="stat-value">{{ stats.answer_rate }}%</span><span class="stat-label">answered</span></div>
+      <div><span class="stat-value">{{ stats.upcoming_events }}</span><span class="stat-label">events</span></div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if trending %}
+  <div class="rail-block">
+    <h2 class="rail-title">Talked about this week</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:.3rem">
+      {% for t, n in trending %}<a class="tag" href="/?tag={{ t }}">#{{ t }} {{ n }}</a>{% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if suggested_groups %}
+  <div class="rail-block">
+    <h2 class="rail-title">Groups to join</h2>
+    <ul class="list-plain">
+      {% for g in suggested_groups %}
+      <li>
+        <a href="/groups/{{ g.slug }}">{{ g.name }}</a>
+        <div class="muted" style="font-size:.82rem">{{ g.member_count|pluralise('member') }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <p class="muted" style="font-size:.78rem;margin-top:1rem;line-height:1.4">
+    Ranked for relevance, never for time spent.
+    <a href="/about">How the feed works</a>
+  </p>
+</aside>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Semester {{ semester }}</h1>
+    <p class="lede">Everything asked and answered this semester, grouped by subject.</p>
+  </div>
+</div>
+
+{% for subject, questions in by_subject.items() %}
+<div class="panel" style="margin-bottom:1rem">
+  <div class="panel-head">
+    <h2>{{ subject }}</h2>
+    <span class="right muted">{{ questions|length|pluralise('question') }}</span>
+  </div>
+  <div class="board">
+    {% for q in questions %}
+    <article class="row">
+      <div class="row-gutter"><span class="vote-score">{{ q.score }}</span></div>
+      <div class="row-body">
+        <h3 class="row-title"><a href="/qa/{{ q.id }}">{{ q.title }}</a></h3>
+        <div class="row-meta">
+          {% if q.accepted_answer_id %}<span class="stamp stamp--verified">Solved</span>
+          {% else %}<span class="muted">{{ q.answer_count|pluralise('answer') }}</span>{% endif %}
+          <span>{{ q.created_at|datefmt }}</span>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="panel empty">
+  <h3>Nothing archived for this semester</h3>
+  <p>Questions appear here once they are tagged with a semester.</p>
+</div>
+{% endfor %}
+{% endblock %}

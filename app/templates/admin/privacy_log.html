@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--narrow{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>PII access log</h1>
+    <p class="lede">Every time anyone opened an ID card or a selfie. Append-only.</p>
+  </div>
+</div>
+
+{% if deletion_requests %}
+<div class="panel" style="margin-bottom:1rem;border-left:3px solid var(--stamp)">
+  <div class="panel-head"><h2>Deletion requests</h2></div>
+  <div class="panel-body">
+    <p class="soft measure">
+      Handle these by hand — decide with the member whether their answers are anonymised or
+      removed outright.
+    </p>
+    <ul class="list-plain">
+      {% for u in deletion_requests %}
+      <li>
+        <a href="/u/{{ u.handle }}">{{ u.full_name }}</a>
+        <span class="muted">requested {{ u.deletion_requested_at|timeago }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<div class="panel"><div class="table-wrap"><table>
+  <thead><tr><th>When</th><th>Who</th><th>Record</th><th>Artefact</th><th>Escalated</th><th>Reason</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <td class="nowrap muted">{{ r.created_at|timefmt }}</td>
+    <td>
+      {% set a = actors.get(r.actor_id) %}
+      {% if a %}<a href="/u/{{ a.handle }}">{{ a.handle }}</a>{% else %}<span class="muted">system</span>{% endif %}
+    </td>
+    <td><a href="/admin/verifications/{{ r.record_id }}">#{{ r.record_id }}</a></td>
+    <td>{{ r.artifact }}</td>
+    <td>{% if r.escalated %}<span class="stamp">yes</span>{% else %}no{% endif %}</td>
+    <td class="muted">{{ r.reason or '' }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="center muted" style="padding:2rem">No accesses recorded.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% if has_more or page > 1 %}
+<div class="panel-foot btn-row">
+  {% if page > 1 %}<a class="btn btn--ghost btn--sm" href="/admin/privacy-log?page={{ page - 1 }}">Newer</a>{% endif %}
+  {% if has_more %}<a class="btn btn--ghost btn--sm" href="/admin/privacy-log?page={{ page + 1 }}">Older</a>{% endif %}
+</div>
+{% endif %}
+</div>
+{% endblock %}

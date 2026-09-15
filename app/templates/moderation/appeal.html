@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="max-width:520px">
+<div class="page-head"><div><h1>Appeal this decision</h1>
+<p class="lede">A different moderator reads it. Say what you think was misread.</p></div></div>
+
+<div class="panel" style="margin-bottom:1rem"><div class="panel-body">
+  <dl class="kv">
+    <dt>Action</dt><dd>{{ action.action.replace('_',' ')|capitalize }}</dd>
+    <dt>When</dt><dd>{{ action.created_at|timefmt }}</dd>
+    <dt>Reason given</dt><dd>{{ action.reason or '—' }}</dd>
+  </dl>
+</div></div>
+
+{% if existing %}
+<div class="panel"><div class="panel-body">
+  <p>You appealed this {{ existing.created_at|timeago }} — <strong>{{ existing.status }}</strong>.</p>
+  {% if existing.decision_note %}<p class="soft">{{ existing.decision_note }}</p>{% endif %}
+</div></div>
+{% else %}
+<form class="panel" method="post" action="/moderation/appeal/{{ action.id }}">
+  <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+  <div class="panel-body">
+    <div class="field">
+      <label for="reason">Why this should be reversed</label>
+      <textarea id="reason" name="reason" rows="6" required maxlength="4000"></textarea>
+    </div>
+  </div>
+  <div class="panel-foot btn-row">
+    <button type="submit" class="btn">Send appeal</button>
+    <a class="btn btn--ghost" href="/">Cancel</a>
+  </div>
+</form>
+{% endif %}
+</div>
+{% endblock %}

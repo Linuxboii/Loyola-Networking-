@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "components/_user.html" import chip %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Project board</h1>
+    <p class="lede">People building things, and the roles they still need filled.</p>
+  </div>
+  {% if can(me, 'post_project') %}
+  <div class="right"><a class="btn" href="/projects/new">Post a project</a></div>
+  {% endif %}
+</div>
+
+<form method="get" action="/projects" class="panel" style="margin-bottom:1rem">
+  <div class="panel-body field-row" style="align-items:flex-end">
+    <div><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}"></div>
+    <div><label for="skill">Needs this skill</label><input id="skill" name="skill" type="text" value="{{ skill }}" placeholder="figma"></div>
+    <div><label for="show">Show</label>
+      <select id="show" name="show">
+        <option value="open" {% if show == 'open' %}selected{% endif %}>Open for applications</option>
+        <option value="all" {% if show == 'all' %}selected{% endif %}>Everything</option>
+      </select>
+    </div>
+    <div style="flex:0"><button type="submit" class="btn btn--ghost">Filter</button></div>
+  </div>
+</form>
+
+{% if projects %}
+<div class="board">
+  {% for p in projects %}
+  <article class="row">
+    <div class="row-gutter"></div>
+    <div class="row-body">
+      <h3 class="row-title"><a href="/projects/{{ p.id }}">{{ p.title }}</a></h3>
+      <div class="row-text">{{ p.summary or p.description|excerpt(160) }}</div>
+      <div class="row-meta">
+        {{ chip(p.owner) }}
+        {% if p.artifact_verified %}<span class="stamp stamp--verified">Shipped</span>{% endif %}
+        {% if p.status == 'closed' %}<span class="muted">Closed</span>{% endif %}
+        {% if p.id in my_applications %}<span class="tier tier-contributor">Applied</span>{% endif %}
+        {% for s in p.skills_needed %}<span class="tag">{{ s }}</span>{% endfor %}
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel empty">
+  <h3>No projects listed</h3>
+  <p>
+    {% if can(me, 'post_project') %}Post what you are building and say who you need.
+    {% else %}Posting projects unlocks at Contributor standing.{% endif %}
+  </p>
+</div>
+{% endif %}
+{% endblock %}

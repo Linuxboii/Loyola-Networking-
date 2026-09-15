@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--narrow{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Audit log</h1>
+<p class="lede">Every moderation action, permanently. Nothing here can be edited or deleted.</p></div></div>
+
+<div class="panel"><div class="table-wrap">
+<table>
+  <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Target</th><th>Reason</th></tr></thead>
+  <tbody>
+    {% for a in actions %}
+    <tr>
+      <td class="nowrap muted">{{ a.created_at|timefmt }}</td>
+      <td class="nowrap">
+        {% set actor = actors.get(a.actor_id) %}
+        {% if actor %}<a href="/u/{{ actor.handle }}">{{ actor.handle }}</a>
+        {% else %}<span class="muted">{{ a.actor_kind }}</span>{% endif %}
+      </td>
+      <td class="nowrap">{{ a.action.replace('_',' ') }}</td>
+      <td class="nowrap muted">{{ a.target_type }} #{{ a.target_id }}</td>
+      <td>{{ a.reason|excerpt(90) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="center muted" style="padding:2rem">No actions recorded yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if has_more or page > 1 %}
+<div class="panel-foot btn-row">
+  {% if page > 1 %}<a class="btn btn--ghost btn--sm" href="/moderation/audit?page={{ page - 1 }}">Newer</a>{% endif %}
+  {% if has_more %}<a class="btn btn--ghost btn--sm" href="/moderation/audit?page={{ page + 1 }}">Older</a>{% endif %}
+</div>
+{% endif %}
+</div>
+{% endblock %}

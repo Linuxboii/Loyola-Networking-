@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--full{% endblock %}
+
+{% block content %}
+<div class="measure" style="margin:0 auto">
+  <div class="page-head">
+    <div>
+      <h1>How this works</h1>
+      <p class="lede">
+        A closed network for {{ CAMPUS }}, where standing is earned by contributing rather
+        than by being liked.
+      </p>
+    </div>
+  </div>
+
+  <div class="panel"><div class="panel-body stack-lg">
+
+    <section>
+      <h2>You rate the work, not the person</h2>
+      <p>
+        There is no button anywhere in this app that rates a human being out of five. You
+        vote on an answer, a project, a set of notes — and the credit goes to whoever made
+        it. That distinction is the whole design. A system where students rank students
+        becomes a popularity contest at best and a weapon at worst.
+      </p>
+      <p>
+        Your standing shows as a tier — {% for label, threshold in REP_TIERS %}{{ label }}{% if not loop.last %}, {% endif %}{% endfor %} —
+        and never as a public number. Only you can see your own total. There is no leaderboard.
+      </p>
+    </section>
+
+    <section>
+      <h2>The five things that count</h2>
+      <dl class="kv">
+        <dt>Academic help</dt><dd>Answers that got upvoted or accepted, notes people found useful.</dd>
+        <dt>Build &amp; ship</dt><dd>Projects with something real behind them — a repo, a live link, a demo.</dd>
+        <dt>Community service</dt><dd>Running events, volunteering, mentoring juniors. Verified by check-in, not self-reported.</dd>
+        <dt>Participation</dt><dd>Good posts and comments. Decays if the content is later removed.</dd>
+        <dt>Trust &amp; conduct</dt><dd>Account age, verification, a clean record. This one can go negative.</dd>
+      </dl>
+      <p class="soft">
+        Each has a monthly ceiling, so no single habit can carry your whole score, and points
+        sit provisional for 48 hours before they settle.
+      </p>
+    </section>
+
+    <section>
+      <h2>Why the feed is boring on purpose</h2>
+      <p>
+        It is chronological by default. The "For you" ranking uses recency, your declared
+        interests, your batch and department, and the author's standing. It does not use
+        time-on-page, and there is no metric anywhere in the codebase that rewards keeping
+        you scrolling. This is a campus utility, not an attention product.
+      </p>
+    </section>
+
+    <section>
+      <h2>Gaming it does not work</h2>
+      <p>
+        You cannot vote for yourself. Repeated votes from the same person on the same author
+        count for progressively less. Reciprocal voting pairs get quietly neutralised. A
+        sudden spike well above your own baseline parks the points for review. None of this
+        gets announced when it triggers.
+      </p>
+      <p>
+        Every point you have ever gained or lost is itemised in
+        <a href="/me/reputation">your ledger</a>, with a link to what caused it. If something
+        there looks wrong, dispute it.
+      </p>
+    </section>
+
+    <section>
+      <h2>What is deliberately missing</h2>
+      <p>
+        No private messages in this version — they are the main harassment route in campus
+        apps and need moderation capacity that does not exist yet. No public profiles, no
+        outside signups, no alumni accounts yet. Pseudonymity exists only in the anonymous
+        doubt box, and even there the system knows who you are, so abuse remains traceable.
+      </p>
+    </section>
+
+  </div></div>
+
+  <p class="muted center" style="margin-top:1.25rem">
+    <a href="/rules">Community rules</a> · <a href="/privacy">Privacy</a> ·
+    <a href="/transparency">Transparency report</a>
+  </p>
+</div>
+{% endblock %}

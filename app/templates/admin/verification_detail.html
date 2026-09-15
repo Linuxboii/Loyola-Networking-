@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--narrow{% endblock %}
+
+{% set f = record.extracted or {} %}
+{% set c = record.field_confidence or {} %}
+{% set checks = record.checks or {} %}
+
+{% block content %}
+<p class="muted" style="margin-bottom:.6rem"><a href="/admin/verifications">← Queue</a></p>
+
+<div class="page-head">
+  <div>
+    <h1>Review verification</h1>
+    <p class="lede">
+      You are seeing the redacted view: the portrait from the card and the selfie. Opening the
+      full card is a separate, logged action.
+    </p>
+  </div>
+</div>
+
+{% if duplicates %}
+<div class="flash flash-error">
+  <strong>This exact card image has been submitted {{ duplicates|length }} other time(s).</strong>
+  That is either a re-submission by the same person or someone using another student's card.
+</div>
+{% endif %}
+{% if devices > 1 %}
+<div class="flash flash-warn">
+  {{ devices }} accounts have signed in from this browser. Not proof of anything on a shared
+  lab machine — worth a second look on a personal device.
+</div>
+{% endif %}
+{% if checks.get('student_dispute') %}
+<div class="flash flash-warn">
+  <strong>The student flagged an error:</strong> {{ checks.get('student_dispute') }}
+</div>
+{% endif %}
+
+<div class="panel">
+  <div class="panel-head">
+    <h2>Do these match?</h2>
+    <span class="right confidence {% if record.confidence >= 0.8 %}confidence--high{% elif record.confidence < 0.6 %}confidence--low{% endif %}">
+      OCR confidence {{ (record.confidence * 100)|round|int }}%
+    </span>
+  </div>
+  <div class="panel-body">
+    <div class="review-grid" style="grid-template-columns:1fr 1fr;max-width:520px">
+      <div>
+        <h4>Photo on the card</h4>
+        {% if record.card_face_path %}
+        <img src="/admin/verifications/{{ record.id }}/artifact/card_face" alt="Portrait from the ID card">
+        {% else %}<p class="muted">Deleted or not captured.</p>{% endif %}
+      </div>
+      <div>
+        <h4>Selfie</h4>
+        {% if record.selfie_path %}
+        <img src="/admin/verifications/{{ record.id }}/artifact/selfie" alt="Selfie">
+        {% else %}<p class="muted">Not submitted yet.</p>{% endif %}
+      </div>
+    </div>
+
+    <details style="margin-top:1rem">
+      <summary class="soft">Open the full card image</summary>
+      <p class="hint" style="margin-top:.4rem">
+        This is recorded against your account in the PII access log as an escalation.
+      </p>
+      {% if record.card_image_path %}
+      <img src="/admin/verifications/{{ record.id }}/artifact/card?escalate=1" alt="Full ID card"
+           style="max-width:100%;margin-top:.5rem;border:1px solid var(--rule)">
+      {% else %}
+      <p class="muted">The image has been deleted under the {{ ID_RETENTION_DAYS }}-day policy.</p>
+      {% endif %}
+    </details>
+  </div>
+</div>
+
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>What the card said</h2></div>
+  <div class="panel-body">
+    <dl class="kv">
+      <dt>Name</dt><dd>{{ f.get('full_name') or '—' }} <span class="confidence">{{ ((c.get('full_name') or 0) * 100)|round|int }}%</span></dd>
+      <dt>Roll number</dt><dd class="mono">{{ f.get('roll_number') or '—' }} <span class="confidence">{{ ((c.get('roll_number') or 0) * 100)|round|int }}%</span></dd>
+      <dt>Course</dt><dd>{{ f.get('course') or '—' }}</dd>
+      <dt>Department</dt><dd>{{ f.get('department') or '—' }}</dd>
+      <dt>Batch</dt><dd>{{ f.get('batch') or '—' }}</dd>
+      <dt>Expiry</dt><dd>{{ f.get('expiry') or 'not printed' }}</dd>
+    </dl>
+
+    <h4 style="margin-top:1rem">Automated checks</h4>
+    <div class="row-meta">
+      {% for key, label in [('issuer','Names the campus'),('roll_unique','Roll number free'),('not_expired','In date'),('quality','Photo quality')] %}
+      {% set v = checks.get(key) %}
+      <span class="tag" style="{% if v is sameas true %}color:var(--verified){% elif v is sameas false %}color:var(--stamp){% endif %}">
+        {{ label }}: {{ 'yes' if v is sameas true else ('no' if v is sameas false else 'n/a') }}
+      </span>
+      {% endfor %}
+      {% if checks.get('face_found') %}<span class="tag">portrait detected</span>{% endif %}
+      {% if checks.get('live_capture') %}<span class="tag" style="color:var(--verified)">live capture</span>
+      {% else %}<span class="tag" style="color:var(--warn)">uploaded from gallery</span>{% endif %}
+      <span class="tag">{{ checks.get('ocr_ms', '?') }} ms, {{ checks.get('ocr_passes', '?') }} passes</span>
+    </div>
+
+    <details style="margin-top:1rem">
+      <summary class="soft">Raw text the reader saw</summary>
+      <pre class="mono" style="white-space:pre-wrap;font-size:.78rem;background:var(--surface-sunk);padding:.6rem;border-radius:2px;margin-top:.4rem">{{ record.ocr_text or '(nothing)' }}</pre>
+    </details>
+  </div>
+</div>
+
+{% if record.status == 'in_review' %}
+<form class="panel" method="post" action="/admin/verifications/{{ record.id }}/decide" style="margin-top:1rem">
+  <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+  <div class="panel-head"><h2>Decide</h2></div>
+  <div class="panel-body">
+    <p class="soft measure" style="margin-bottom:.75rem">
+      If the reader got a field wrong, correct it here before approving. This is the only
+      place identity fields can be edited.
+    </p>
+    <div class="field-row">
+      <div class="field">
+        <label for="full_name">Name</label>
+        <input id="full_name" name="full_name" type="text" value="{{ f.get('full_name') or (person.full_name if person else '') }}">
+      </div>
+      <div class="field">
+        <label for="roll_number">Roll number</label>
+        <input id="roll_number" name="roll_number" type="text" class="mono"
+               value="{{ f.get('roll_number') or (person.roll_number if person else '') }}">
+      </div>
+    </div>
+    <div class="field">
+      <label for="note">Note</label>
+      <input id="note" name="note" type="text" placeholder="Reason — the student sees this if you reject">
+    </div>
+  </div>
+  <div class="panel-foot btn-row">
+    <button type="submit" name="outcome" value="approve" class="btn">Approve</button>
+    <button type="submit" name="outcome" value="reject" class="btn btn--ghost">Reject</button>
+  </div>
+</form>
+{% else %}
+<div class="panel" style="margin-top:1rem"><div class="panel-body">
+  <p><strong>{{ record.status|capitalize }}</strong>{% if record.decision_reason %} — {{ record.decision_reason }}{% endif %}</p>
+  {% if record.decided_at %}<p class="muted">{{ record.decided_at|timefmt }}</p>{% endif %}
+</div></div>
+{% endif %}
+
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Who has looked at these images</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>When</th><th>Who</th><th>What</th><th>Escalated</th></tr></thead>
+      <tbody>
+        {% for a in accesses %}
+        <tr>
+          <td class="nowrap muted">{{ a.created_at|timefmt }}</td>
+          <td>#{{ a.actor_id }}</td>
+          <td>{{ a.artifact }}</td>
+          <td>{{ 'yes' if a.escalated else 'no' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="muted center" style="padding:1rem">No accesses recorded.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

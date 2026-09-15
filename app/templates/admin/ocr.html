@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--narrow{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>ID card reading</h1>
+    <p class="lede">
+      The card reader is built in — OpenCV and Tesseract on this server, no external API. This
+      is where you correct it against real Loyola Academy cards.
+    </p>
+  </div>
+</div>
+
+{% if request.query_params.get('saved') %}<div class="flash flash-ok">Template saved. It takes effect on the next card read.</div>{% endif %}
+
+<div class="panel">
+  <div class="panel-body">
+    <div class="stat-row">
+      <div>
+        <span class="stat-value">{{ (avg_confidence * 100)|round|int }}%</span>
+        <span class="stat-label">average confidence, last 30 days</span>
+      </div>
+      <div>
+        <span class="stat-value">{{ (autopass * 100)|round|int }}%</span>
+        <span class="stat-label">threshold for automatic pass</span>
+      </div>
+    </div>
+    <p class="soft measure" style="margin-top:.75rem">
+      Below the threshold a card still goes through — it just lands in the review queue with
+      a note instead of passing straight to Tier 1.
+    </p>
+  </div>
+</div>
+
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>How to tune this</h2></div>
+  <div class="panel-body stack">
+    <p class="measure">
+      The single highest-value change is <span class="mono">roll_regex</span>. The default is
+      deliberately loose, because no specimen card was available when this was built. Once you
+      know the real format — say roll numbers are always two digits, then letters, then four
+      digits — tighten it to
+      <span class="mono">^\d{2}[A-Z]{2,5}\d{4}$</span> and misreads stop almost entirely: the
+      reader enumerates the plausible readings of each ambiguous character and a tight pattern
+      leaves exactly one survivor.
+    </p>
+    <p class="measure">
+      <span class="mono">labels</span> holds the words printed beside each field. If the card
+      says "Admn. No." and that is not listed, add it — label-anchored reads are far more
+      reliable than pattern scans. <span class="mono">issuer_tokens</span> are the words that
+      must appear somewhere on the card for it to count as ours.
+    </p>
+  </div>
+</div>
+
+{% if test_result %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Test result</h2></div>
+  <div class="panel-body">
+    <pre class="mono" style="white-space:pre-wrap;font-size:.8rem;background:var(--surface-sunk);padding:.75rem;border-radius:2px">{{ test_result }}</pre>
+  </div>
+</div>
+{% endif %}
+
+<form class="panel" method="post" action="/admin/ocr/test" style="margin-top:1rem">
+  <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+  <div class="panel-head"><h2>Try the extractor on some text</h2></div>
+  <div class="panel-body">
+    <div class="field">
+      <label for="sample">Paste what a card says, one line per printed line</label>
+      <textarea id="sample" name="sample" rows="8" class="mono" style="font-size:.85rem"
+                placeholder="LOYOLA ACADEMY&#10;STUDENT IDENTITY CARD&#10;Name : ANANYA RAJESH KUMAR&#10;Roll No : 21BSC1042&#10;Course : B.SC (MPCS)&#10;Batch : 2021-2024">{{ test_sample or '' }}</textarea>
+      <div class="hint">Checks a regex or label change without re-photographing a card.</div>
+    </div>
+    <button type="submit" class="btn btn--ghost">Run extractor</button>
+  </div>
+</form>
+
+<form class="panel" method="post" action="/admin/ocr" style="margin-top:1rem">
+  <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+  <div class="panel-head"><h2>Card template</h2></div>
+  <div class="panel-body">
+    <div class="field">
+      <label for="template">JSON</label>
+      <textarea id="template" name="template" rows="26" class="mono" style="font-size:.8rem">{{ template_json }}</textarea>
+      <div class="hint">Validated on save — a regex that will not compile is rejected rather than stored.</div>
+    </div>
+  </div>
+  <div class="panel-foot btn-row">
+    <button type="submit" class="btn">Save template</button>
+    <details style="margin-left:auto">
+      <summary class="soft">Show the shipped defaults</summary>
+      <pre class="mono" style="white-space:pre-wrap;font-size:.75rem;max-height:20rem;overflow:auto;background:var(--surface-sunk);padding:.6rem;margin-top:.5rem">{{ default_json }}</pre>
+    </details>
+  </div>
+</form>
+
+{% if recent %}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Recent reads</h2></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>When</th><th>Name read</th><th>Roll read</th><th>Confidence</th><th>Status</th><th>Speed</th></tr></thead>
+    <tbody>
+      {% for r in recent %}
+      {% set f = r.extracted or {} %}
+      <tr>
+        <td class="nowrap muted">{{ r.created_at|timeago }}</td>
+        <td>{{ f.get('full_name') or '—' }}</td>
+        <td class="mono">{{ f.get('roll_number') or '—' }}</td>
+        <td>
+          <span class="confidence {% if r.confidence >= 0.8 %}confidence--high{% elif r.confidence < 0.6 %}confidence--low{% endif %}">
+            {{ (r.confidence * 100)|round|int }}%
+          </span>
+        </td>
+        <td>{{ r.status }}</td>
+        <td class="muted nowrap">{{ (r.checks or {}).get('ocr_ms', '?') }} ms</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+{% endblock %}

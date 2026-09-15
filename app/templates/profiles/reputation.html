@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Your reputation</h1>
+    <p class="lede">
+      Every point, where it came from, and what it counted for. Nothing here is hidden from
+      you — if something looks wrong, say so.
+    </p>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-body">
+    <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:flex-start">
+      <div>
+        <span class="stat-value" style="font-size:2.2rem">{{ me.rep_total|round|int }}</span>
+        <span class="stat-label">points · <span class="tier {{ tier_colour(me.rep_tier) }}">{{ me.rep_tier }}</span></span>
+        {% set prog = tier_progress(me) %}
+        {% if prog.label %}
+        <div class="muted" style="font-size:.84rem;margin-top:.5rem">
+          {{ prog.remaining }} to {{ prog.label }}
+        </div>
+        <div class="progress-track" style="width:12rem"><div class="progress-fill" style="width:{{ prog.percent }}%"></div></div>
+        {% endif %}
+      </div>
+      <div style="flex:1;min-width:16rem">
+        {% for p in breakdown %}
+        <div class="pillar">
+          <div class="pillar-head">
+            <span>{{ PILLAR_LABELS[p.pillar] }}</span>
+            <span class="mono">{{ p.value|round|int }} <span class="muted">/ {{ p.cap }} cap</span></span>
+          </div>
+          <div class="pillar-track">
+            <div class="pillar-fill pillar-fill--{{ p.pillar }}" style="width:{{ (p.ratio * 100)|round|int }}%"></div>
+          </div>
+        </div>
+        {% endfor %}
+        <p class="muted" style="font-size:.8rem;margin-top:.5rem">
+          Caps reset monthly, so no single habit can carry the whole score.
+        </p>
+      </div>
+    </div>
+  </div>
+  {% if me.rep_frozen %}
+  <div class="panel-foot" style="background:var(--stamp-soft)">
+    <strong>Your reputation is frozen</strong> pending review. You can still read and post;
+    points are not being added. <a href="/moderation/my-appeals">Appeal</a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>What unlocks next</h2></div>
+  <div class="panel-body">
+    <table>
+      <tbody>
+      {% for label, needed in capabilities %}
+      <tr>
+        <td>{{ label }}</td>
+        <td class="right nowrap">
+          {% if tier_index(me.rep_tier) >= tier_index(needed) %}
+          <span class="tier tier-contributor">Open</span>
+          {% else %}
+          <span class="muted">{{ needed }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Ledger</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>When</th><th>What happened</th><th>Pillar</th><th class="right">Points</th><th>State</th></tr>
+      </thead>
+      <tbody>
+        {% for e in events %}
+        <tr>
+          <td class="nowrap muted">{{ e.created_at|timeago }}</td>
+          <td>
+            {{ e.reason.replace('_', ' ')|capitalize }}
+            {% if e.detail %}<div class="muted" style="font-size:.82rem">{{ e.detail }}</div>{% endif %}
+            {% if e.capped_amount and e.capped_amount > 0 %}
+            <div class="muted" style="font-size:.8rem">
+              {{ e.capped_amount|round|int }} points not counted — monthly cap reached.
+            </div>
+            {% endif %}
+          </td>
+          <td class="muted nowrap">{{ PILLAR_LABELS.get(e.pillar, e.pillar) }}</td>
+          <td class="right ledger-amount {% if e.points > 0 %}ledger-amount--plus{% elif e.points < 0 %}ledger-amount--minus{% endif %}">
+            {{ '+' if e.points > 0 }}{{ e.points|round|int }}
+          </td>
+          <td class="ledger-state nowrap">
+            {% if e.state == 'provisional' %}Settles {{ e.settles_at|timeago }}
+            {% elif e.state == 'held' %}Held for review
+            {% elif e.state == 'void' %}Withdrawn
+            {% else %}Settled{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="center muted" style="padding:2rem">
+          Nothing yet. Answer a question and the first row appears here.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if has_more or page > 1 %}
+  <div class="panel-foot btn-row">
+    {% if page > 1 %}<a class="btn btn--ghost btn--sm" href="/me/reputation?page={{ page - 1 }}">Newer</a>{% endif %}
+    {% if has_more %}<a class="btn btn--ghost btn--sm" href="/me/reputation?page={{ page + 1 }}">Older</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<p class="muted" style="margin-top:1rem;font-size:.84rem">
+  Points sit provisional for 48 hours before they settle. Content that is later removed has
+  its points withdrawn. If a row here looks wrong,
+  <a href="/report?type=post&amp;id=0">raise it with a moderator</a>.
+</p>
+{% endblock %}

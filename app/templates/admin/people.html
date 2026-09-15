@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--narrow{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>People</h1>
+    <p class="lede">Grant roles, reset a password after an in-person check, or lift a freeze.</p>
+  </div>
+</div>
+
+<form method="get" action="/admin/people" class="panel" style="margin-bottom:1rem">
+  <div class="panel-body field-row" style="align-items:flex-end">
+    <div style="flex:1">
+      <label for="q">Name, username or roll number</label>
+      <input id="q" name="q" type="search" value="{{ q }}">
+    </div>
+    <div style="flex:0"><button type="submit" class="btn btn--ghost">Search</button></div>
+  </div>
+</form>
+
+<div class="panel"><div class="table-wrap"><table>
+  <thead><tr><th>Member</th><th>Roll</th><th>Tier</th><th>Standing</th><th>Roles</th><th></th></tr></thead>
+  <tbody>
+  {% for u in users %}
+  <tr>
+    <td>
+      <a href="/u/{{ u.handle }}">{{ u.full_name }}</a>
+      <div class="muted" style="font-size:.8rem">@{{ u.handle }}</div>
+    </td>
+    <td class="mono nowrap">{{ u.roll_number or '—' }}</td>
+    <td>{{ u.tier }}{% if u.status != 'active' %} <span class="tag">{{ u.status }}</span>{% endif %}</td>
+    <td class="nowrap">
+      <span class="tier {{ tier_colour(u.rep_tier) }}">{{ u.rep_tier }}</span>
+      {% if u.rep_frozen %}<span class="tag">frozen</span>{% endif %}
+    </td>
+    <td>
+      <form method="post" action="/admin/people/{{ u.id }}/roles">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        {% for r in roles %}
+        <label class="check" style="font-size:.8rem">
+          <input type="checkbox" name="roles" value="{{ r }}" {% if r in (u.roles or []) %}checked{% endif %}>
+          <span>{{ r.replace('_', ' ') }}</span>
+        </label>
+        {% endfor %}
+        <button type="submit" class="btn btn--ghost btn--sm" style="margin-top:.3rem">Save roles</button>
+      </form>
+    </td>
+    <td style="min-width:13rem">
+      {% if u.rep_frozen or u.status != 'active' %}
+      <form method="post" action="/admin/people/{{ u.id }}/unfreeze" style="margin-bottom:.3rem">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        <button type="submit" class="btn btn--ghost btn--sm">Reinstate</button>
+      </form>
+      {% endif %}
+      <details>
+        <summary class="soft" style="font-size:.82rem">Reset password</summary>
+        <form method="post" action="/admin/people/{{ u.id }}/reset-password" style="margin-top:.3rem"
+              data-confirm="Only do this after checking their ID card in person.">
+          <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+          <input name="password" type="text" required minlength="10" placeholder="New password">
+          <button type="submit" class="btn btn--ghost btn--sm" style="margin-top:.3rem">Set</button>
+        </form>
+      </details>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="center muted" style="padding:2rem">No accounts found.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

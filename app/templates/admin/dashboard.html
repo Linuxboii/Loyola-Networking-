@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><h1>Admin</h1></div></div>
+
+{% if request.query_params.get('purged') %}
+<div class="flash flash-ok">Purged ID artefacts from {{ request.query_params.get('purged') }} records.</div>
+{% endif %}
+{% if not tesseract %}
+<div class="flash flash-error">
+  <strong>Tesseract is not available.</strong> ID card reading will fail until it is installed.
+</div>
+{% endif %}
+
+<div class="panel"><div class="panel-body">
+  <div class="stat-row" style="gap:2rem">
+    <div><span class="stat-value">{{ stats.users_verified }}</span><span class="stat-label">verified members</span></div>
+    <div><span class="stat-value">{{ stats.users_total }}</span><span class="stat-label">accounts</span></div>
+    <div><span class="stat-value">{{ stats.users_pending }}</span><span class="stat-label">awaiting review</span></div>
+    <div><span class="stat-value">{{ stats.signups_7d }}</span><span class="stat-label">signups this week</span></div>
+    <div><span class="stat-value">{{ stats.active_7d }}</span><span class="stat-label">active this week</span></div>
+    <div><span class="stat-value">{{ stats.rep_events }}</span><span class="stat-label">ledger entries</span></div>
+  </div>
+</div></div>
+
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Where to go</h2></div>
+  <div class="panel-body btn-row">
+    <a class="btn" href="/admin/verifications">Verification queue ({{ stats.users_pending }})</a>
+    <a class="btn btn--ghost" href="/moderation">Moderation queue</a>
+    <a class="btn btn--ghost" href="/admin/people">People and roles</a>
+    <a class="btn btn--ghost" href="/admin/ocr">ID card reading</a>
+    <a class="btn btn--ghost" href="/admin/lists">Filter word lists</a>
+    <a class="btn btn--ghost" href="/admin/devices">Shared devices</a>
+    <a class="btn btn--ghost" href="/admin/privacy-log">PII access log</a>
+  </div>
+</div>
+
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-head"><h2>Storage and retention</h2></div>
+  <div class="panel-body">
+    <dl class="kv">
+      <dt>Public media</dt><dd>{{ storage.media_files }} files · {{ storage.media_mb }} MB</dd>
+      <dt>Verification artefacts</dt><dd>{{ storage.verification_files }} files · {{ storage.verification_mb }} MB (encrypted)</dd>
+      <dt>Records still holding images</dt><dd>{{ stats.artifacts_pending_purge }}</dd>
+      <dt>Retention policy</dt><dd>{{ retention_days }} days after verification completes</dd>
+      <dt>Tesseract</dt><dd>{{ tesseract or 'MISSING' }}</dd>
+    </dl>
+    <form method="post" action="/admin/purge-now" style="margin-top:.75rem"
+          data-confirm="Run the purge now? Expired ID images are shredded permanently.">
+      <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+      <button type="submit" class="btn btn--ghost btn--sm">Run retention purge now</button>
+    </form>
+    <p class="hint">Runs automatically every night at 03:30.</p>
+  </div>
+</div>
+{% endblock %}
