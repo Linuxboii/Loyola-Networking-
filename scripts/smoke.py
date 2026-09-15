@@ -134,12 +134,12 @@ async def main() -> int:
             ).scalar_one()
             record = await verification.latest_record(db, user.id)
             check(record is not None and record.status == "in_review", "record is in review")
+            record_id = record.id
             await verification.approve(db, record, None, "smoke test")
             user.roles = ["admin", "moderator"]
             user.rep_total = 5000
             user.rep_tier = "Pillar"
             await db.commit()
-            uid = user.id
 
         # ------------------------------------------------------- full sweep
         async with AsyncClient(
@@ -171,7 +171,7 @@ async def main() -> int:
                 "/moderation/my-appeals",
                 "/admin", "/admin/verifications", "/admin/people", "/admin/ocr",
                 "/admin/lists", "/admin/devices", "/admin/privacy-log",
-                f"/admin/verifications/{1}",
+                f"/admin/verifications/{record_id}",
                 "/healthz",
             ]
             for path in pages:
