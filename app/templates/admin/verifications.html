@@ -11,11 +11,24 @@
   </div>
 </div>
 
+{% macro count(bucket) -%}
+{%- set n = (bucket_counts or {}).get(bucket, 0) -%}
+{%- if n %} <span class="nav-count">{{ n }}</span>{% endif -%}
+{%- endmacro %}
+
 <div class="tabs">
-  <a href="/admin/verifications" {% if show == 'in_review' %}aria-current="page"{% endif %}>Waiting</a>
-  <a href="/admin/verifications?show=approved" {% if show == 'approved' %}aria-current="page"{% endif %}>Approved</a>
-  <a href="/admin/verifications?show=rejected" {% if show == 'rejected' %}aria-current="page"{% endif %}>Rejected</a>
+  <a href="/admin/verifications" {% if show == 'in_review' %}aria-current="page"{% endif %}>Waiting on you{{ count('in_review') }}</a>
+  <a href="/admin/verifications?show=waiting_on_student" {% if show == 'waiting_on_student' %}aria-current="page"{% endif %}>Waiting on student{{ count('waiting_on_student') }}</a>
+  <a href="/admin/verifications?show=approved" {% if show == 'approved' %}aria-current="page"{% endif %}>Approved{{ count('approved') }}</a>
+  <a href="/admin/verifications?show=rejected" {% if show == 'rejected' %}aria-current="page"{% endif %}>Rejected{{ count('rejected') }}</a>
 </div>
+
+{% if show == 'waiting_on_student' %}
+<p class="hint" style="margin:-.5rem 0 1rem">
+  These submitted a card but have not finished the selfie step, so they never reached your queue.
+  Nothing here needs a decision yet — open one to see what the card read.
+</p>
+{% endif %}
 
 {% if records %}
 <div class="board">
@@ -40,6 +53,11 @@
         <span>{{ f.get('course') or '—' }}</span>
         <span>{{ f.get('batch') or '—' }}</span>
         <span class="muted">{{ r.created_at|timeago }}</span>
+        <span class="tag">{{ {'pending': 'card read, no selfie yet',
+                              'needs_selfie': 'waiting for their selfie',
+                              'in_review': 'ready for your decision',
+                              'approved': 'approved',
+                              'rejected': 'rejected'}.get(r.status, r.status) }}</span>
       </div>
       <div class="row-meta">
         {% if r.checks and r.checks.get('soft_fail') %}
@@ -55,8 +73,16 @@
 </div>
 {% else %}
 <div class="panel empty">
-  <h3>Queue is clear</h3>
+  <h3>Nothing in this bucket</h3>
+  {% if show == 'in_review' and (bucket_counts or {}).get('waiting_on_student') %}
+  <p>
+    Nobody is waiting on a decision, but
+    <a href="/admin/verifications?show=waiting_on_student">{{ bucket_counts['waiting_on_student'] }}</a>
+    submitted a card and have not finished the selfie step.
+  </p>
+  {% else %}
   <p>Nobody is waiting to be verified.</p>
+  {% endif %}
 </div>
 {% endif %}
 {% endblock %}

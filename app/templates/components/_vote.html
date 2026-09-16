@@ -1,8 +1,37 @@
-{# Replaced in place by app.js after a vote; also renders on first paint. #}
-<div class="vote" data-vote-box data-target-type="{{ target_type }}" data-target-id="{{ target_id }}">
+{# Replaced in place by app.js after a vote; also renders on first paint.
+
+   Two dialects, same endpoint and same data contract. The feed asks for
+   'inline' — a Threads-style like control sitting in the action row — and
+   everything else gets the stacked arrows, where an explicit downvote is
+   part of how answers get sorted. data-vote-style travels with the request
+   so the re-render comes back in the dialect it left in. #}
+{% from "components/_icons.html" import heart, chevron_down %}
+{% set style = vote_style|default('stack') %}
+
+{% if style == 'inline' %}
+<div class="vote vote--inline" data-vote-box data-vote-style="inline"
+     data-target-type="{{ target_type }}" data-target-id="{{ target_id }}">
+  <button type="button" class="act act--like" data-vote="1"
+          aria-pressed="{{ 'true' if my_vote == 1 else 'false' }}"
+          aria-label="{{ 'Undo useful' if my_vote == 1 else 'Mark useful' }}"
+          title="This was useful">
+    <span class="act-ico">{{ heart(filled=(my_vote == 1)) }}</span>
+    <span class="act-num vote-score">{{ score }}</span>
+  </button>
+  <button type="button" class="act act--down down" data-vote="-1"
+          aria-pressed="{{ 'true' if my_vote == -1 else 'false' }}"
+          aria-label="Mark not useful" title="This was not useful">
+    <span class="act-ico">{{ chevron_down() }}</span>
+  </button>
+</div>
+
+{% else %}
+<div class="vote" data-vote-box data-vote-style="stack"
+     data-target-type="{{ target_type }}" data-target-id="{{ target_id }}">
   <button type="button" data-vote="1" aria-pressed="{{ 'true' if my_vote == 1 else 'false' }}"
           aria-label="Upvote" title="This was useful">▲</button>
   <span class="vote-score">{{ score }}</span>
   <button type="button" class="down" data-vote="-1" aria-pressed="{{ 'true' if my_vote == -1 else 'false' }}"
           aria-label="Downvote" title="This was not useful">▼</button>
 </div>
+{% endif %}

@@ -17,8 +17,15 @@ from typing import Any
 import pytesseract
 from PIL import Image
 
+from app.config import settings
 from app.ocr import extract as fx
 from app.ocr import imageops as io
+
+# Windows installers frequently leave tesseract off PATH. Honour an explicit
+# path when one is configured; otherwise pytesseract's default ("tesseract")
+# resolves through PATH as it should on a Linux server.
+if settings.tesseract_cmd:
+    pytesseract.pytesseract.tesseract_cmd = settings.tesseract_cmd
 
 # Page segmentation modes worth trying on a card: a uniform block, then a
 # single column. Sparse text (11) is held back for cards where those find
@@ -109,6 +116,56 @@ def _settle_rotation(img):
     return best[2], best[1], "heuristic"
 
 
+# Where to look for the institution's banner, in the order worth paying for.
+# Each entry is (which image, top fraction, long edge the band is scaled to).
+# The banner is white-on-navy, so every dark-text binarisation erases it and
+# only the inverted variant can read it — the old second attempt used "clahe"
+# and scored zero on all ten fixtures while costing a full Tesseract pass.
+# What actually decides the matter is resolution: a 640px band is plenty on a
+# frame that is mostly card, and illegible on a phone snapshot where the card
+# fills two thirds of a wider frame.
+ISSUER_BANDS = [
+    ("full", 0.42, 640),
+    ("full", 0.42, 1000),
+    ("card", 0.42, 640),
+]
+
+
+def _settle_issuer(full, card, tpl: dict[str, Any]) -> tuple[bool, int, list[str], int]:
+    """Decide whether the card names the institution, and say what it cost.
+
+    This runs before the field grid because a failed issuer check costs a 45%
+    confidence penalty, which on its own drops a good card below the autopass
+    threshold *and* defeats the grid's early exit — so one unreadable banner
+    used to turn a five-second read into an eighteen-second one that still went
+    to manual review.
+
+    The banner is read from the uncropped frame first: card detection can
+    legitimately trim to the body panel, and the institution's name lives above
+    it. The cropped card is the last resort, for the opposite case — a frame
+    with so much background that the banner is small in it.
+    """
+    passes = 0
+    best: tuple[bool, int, list[str]] = (False, 0, [])
+    for which, fraction, long_edge in ISSUER_BANDS:
+        frame = full if which == "full" else card
+        if frame is None:
+            continue
+        band = io.make_variant(io.top_band(frame, fraction=fraction, long_edge=long_edge), "invert")
+        if band is None:
+            continue
+        words = _words_from(band, 6)
+        passes += 1
+        if not words:
+            continue
+        ok, hits, found = fx.check_issuer(fx.build_lines(words), tpl)
+        if hits > best[1]:
+            best = (ok, hits, found)
+        if ok:
+            break
+    return best[0], best[1], best[2], passes
+
+
 def _merge(results: list[dict[str, Any]]) -> dict[str, Any]:
     """Field-level merge: for each field, keep the most confident reading."""
     if not results:
@@ -122,12 +179,15 @@ def _merge(results: list[dict[str, Any]]) -> dict[str, Any]:
         "issuer_hits": max((r.get("issuer_hits", 0) for r in results), default=0),
         "issuer_found": next((r["issuer_found"] for r in results if r.get("issuer_ok")), []),
     }
-    keys = ["roll_number", "full_name", "course", "department", "batch", "expiry"]
+    keys = ["roll_number", "full_name", "course", "department", "batch", "expiry", "year_codes"]
+    empty_for: dict[str, Any] = {"expiry": None, "year_codes": []}
+    winners: dict[str, dict[str, Any] | None] = {}
     for key in keys:
         best_conf = -1.0
         best_val: Any = None
         best_method = "none"
         best_src = ""
+        best_res: dict[str, Any] | None = None
         for r in results:
             conf = float(r["confidence"].get(key, 0.0))
             val = r["fields"].get(key)
@@ -135,14 +195,58 @@ def _merge(results: list[dict[str, Any]]) -> dict[str, Any]:
                 continue
             if conf > best_conf:
                 best_conf, best_val, best_method, best_src = conf, val, r["method"].get(key, "?"), r.get("_tag", "")
-        merged["fields"][key] = best_val if best_val is not None else ("" if key != "expiry" else None)
+                best_res = r
+        merged["fields"][key] = best_val if best_val is not None else empty_for.get(key, "")
         merged["confidence"][key] = round(max(best_conf, 0.0), 3)
         merged["method"][key] = best_method
         merged["source"][key] = best_src
+        winners[key] = best_res
 
-    # batch_year rides along with whichever batch string won.
-    winner = next((r for r in results if r["fields"].get("batch") == merged["fields"].get("batch")), results[0])
-    merged["fields"]["batch_year"] = winner["fields"].get("batch_year")
+    # batch_year is derived from the batch string, so it has to come from the
+    # result that actually won "batch". Matching on the string after the fact
+    # picked an arbitrary result whenever no batch was found at all, and left
+    # the derived year with no confidence or method of its own.
+    batch_winner = winners.get("batch")
+    merged["fields"]["batch_year"] = batch_winner["fields"].get("batch_year") if batch_winner else None
+    merged["confidence"]["batch_year"] = merged["confidence"].get("batch", 0.0)
+    merged["method"]["batch_year"] = merged["method"].get("batch", "none")
+    merged["source"]["batch_year"] = merged["source"].get("batch", "")
+
+    # "batch" is the one field where the most confident reading is not the best
+    # one. It is derived from the year-code rows printed under the course, so a
+    # pass that found all three rows knows the real span even if it read them
+    # less crisply than a pass that found two — and on a phone snapshot that is
+    # exactly what happens, with the sharper two-row read winning and silently
+    # shortening the student's course by a year.
+    spans = []
+    for r in results:
+        if r["method"].get("batch") != "year-codes":
+            continue
+        raw = r["fields"].get("batch") or ""
+        end = r["fields"].get("batch_year")
+        if not end or "-" not in raw:
+            continue
+        try:
+            start = int(raw.split("-", 1)[0])
+        except ValueError:
+            continue
+        # A degree runs a few years. Anything else is a misread year, not a
+        # longer course, and must not be allowed to widen the span.
+        if 1 <= int(end) - start <= 6:
+            spans.append((int(end), float(r["confidence"].get("batch", 0.0)), r))
+
+    if spans:
+        end, _conf, widest = max(spans, key=lambda t: (t[0], t[1]))
+        if end > int(merged["fields"].get("batch_year") or 0):
+            for key in ("batch", "year_codes"):
+                merged["fields"][key] = widest["fields"].get(key)
+                merged["confidence"][key] = round(float(widest["confidence"].get(key, 0.0)), 3)
+                merged["method"][key] = widest["method"].get(key, "?")
+                merged["source"][key] = widest.get("_tag", "")
+            merged["fields"]["batch_year"] = widest["fields"].get("batch_year")
+            merged["confidence"]["batch_year"] = merged["confidence"]["batch"]
+            merged["method"]["batch_year"] = merged["method"]["batch"]
+            merged["source"]["batch_year"] = merged["source"]["batch"]
 
     richest = max(results, key=lambda r: len(r.get("text", "")))
     merged["text"] = richest.get("text", "")
@@ -195,6 +299,10 @@ def read_id_card(
 
     card, cropped = io.detect_card(full)
     card = io.normalise_size(card)
+    # Now that the card has been found, re-measure quality on the card alone.
+    # Everything but the size verdict was previously computed over the desk and
+    # the dark border around a phone snapshot as well as the card.
+    out["quality"] = io.assess_card(card, img).as_dict()
     out["rotation"] = rotation
     out["rotation_method"] = rot_how
     out["card_detected"] = cropped
@@ -218,26 +326,9 @@ def read_id_card(
     # binarisation erases it — and a failed issuer check costs a 45% confidence
     # penalty, which would otherwise defeat the early exit and make us OCR the
     # whole grid on a perfectly good card.
-    issuer_ok = False
-    issuer_hits = 0
-    issuer_found: list[str] = []
     merged_tpl = {**fx.DEFAULT_TEMPLATE, **(template or {})}
-    # Read the banner from the uncropped frame: card detection can legitimately
-    # trim to the body panel, and the institution's name lives above it.
-    band = io.make_variant(io.top_band(full), "invert")
-    if band is not None:
-        band_words = _words_from(band, 6)
-        passes += 1
-        if band_words:
-            issuer_ok, issuer_hits, issuer_found = fx.check_issuer(fx.build_lines(band_words), merged_tpl)
-    if not issuer_ok:
-        # Dark-on-light banner, or a header the invert pass mangled.
-        band2 = io.make_variant(io.top_band(full), "clahe")
-        if band2 is not None:
-            band_words = _words_from(band2, 6)
-            passes += 1
-            if band_words:
-                issuer_ok, issuer_hits, issuer_found = fx.check_issuer(fx.build_lines(band_words), merged_tpl)
+    issuer_ok, issuer_hits, issuer_found, band_passes = _settle_issuer(full, card, merged_tpl)
+    passes += band_passes
 
     for vname in VARIANT_GRID:
         arr = io.make_variant(card, vname, clahe)
@@ -255,8 +346,16 @@ def read_id_card(
             parsed["_overall"] = fx.overall_confidence(parsed)
             results.append(parsed)
 
-            # Good enough — stop burning the single core.
-            if parsed["_overall"] >= autopass_at + 0.12 and parsed["fields"].get("roll_number"):
+            # Good enough — stop burning the single core. The name has to clear
+            # the bar on its own, not ride on the overall score: the roll
+            # number carries 45% of that weight, so a pass that nailed the roll
+            # and made hash of the name ("Pararil Jon Sine") used to score high
+            # enough to stop the grid before a later variant read it properly.
+            if (
+                parsed["_overall"] >= autopass_at + 0.12
+                and parsed["fields"].get("roll_number")
+                and parsed["confidence"].get("full_name", 0.0) >= autopass_at + 0.10
+            ):
                 done = True
                 break
         if done:

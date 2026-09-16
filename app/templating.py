@@ -145,8 +145,24 @@ templates.env.filters.update(
     }
 )
 
+def asset(path: str) -> str:
+    """Cache-bust a static file by its own modification time.
+
+    nginx serves /static with a week of caching, which is right for the bytes
+    and wrong for a redeploy: without this, a stylesheet change is invisible to
+    everyone who visited yesterday until they hard-refresh.
+    """
+    rel = path.lstrip("/").removeprefix("static/")
+    try:
+        stamp = int((BASE_DIR / "static" / rel).stat().st_mtime)
+    except OSError:
+        return path
+    return f"{path}?v={stamp}"
+
+
 templates.env.globals.update(
     {
+        "asset": asset,
         "APP_NAME": settings.app_name,
         "CAMPUS": settings.campus_name,
         "PILLAR_LABELS": PILLAR_LABELS,
@@ -156,6 +172,7 @@ templates.env.globals.update(
         "GRIEVANCE_EMAIL": settings.grievance_email,
         "COUNSELLOR": settings.counsellor_contact,
         "ID_RETENTION_DAYS": settings.id_image_retention_days,
+        "VERIFY_ATTEMPTS": settings.verification_attempts_per_week,
         "can": can,
         "csrf_token": lambda request: csrf_for(request.cookies.get(settings.session_cookie) or ""),
         "tier_index": tier_index,

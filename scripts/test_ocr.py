@@ -17,6 +17,10 @@ EXPECTED = {
     "card_glare": {"roll_number": "21BSC1042", "full_name": "Ananya Rajesh Kumar"},
     "card_dim": {"roll_number": "21BSC1042", "full_name": "Ananya Rajesh Kumar"},
     "card_alt": {"roll_number": "22BCA/0317", "full_name": "Mohammed Irfan Ali"},
+    # The real Loyola layout: UID label, 12-digit identifier, clumped course.
+    "card_loyola_clean": {"roll_number": "111725039001", "full_name": "Parayil John Shibu"},
+    "card_loyola_phone": {"roll_number": "111725039001", "full_name": "Parayil John Shibu"},
+    "card_loyola_rotated": {"roll_number": "111725039001", "full_name": "Parayil John Shibu"},
 }
 
 

@@ -43,9 +43,14 @@ class Settings(BaseSettings):
     # Regex the OCR'd roll number must satisfy. Overridable at runtime from the
     # admin console (settings table wins over this default) so the pattern can be
     # corrected against real cards without a redeploy.
+    # Absolute path to the tesseract binary. Leave blank to use PATH, which is
+    # right on a Linux server; on Windows the installer does not always add
+    # itself, so a pilot machine can point at it here instead.
+    tesseract_cmd: str = ""
+
     roll_number_regex: str = r"^[A-Z0-9][A-Z0-9\-/]{4,19}$"
     ocr_autopass_confidence: float = 0.72
-    verification_attempts_per_week: int = 3
+    verification_attempts_per_week: int = 5
     id_image_retention_days: int = 30
     provisional_tier_hours: int = 72
 

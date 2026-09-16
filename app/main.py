@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import logging
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
@@ -53,8 +55,28 @@ async def _apply_sql_extras() -> None:
                 log.warning("index statement failed: %s -- %s", first_line, str(exc).split("\n")[0])
 
 
+REQUIRED_EXTENSIONS = ("pg_trgm", "btree_gin")
+
+
+async def _ensure_extensions() -> None:
+    """Extensions must exist *before* create_all.
+
+    ``users`` declares a GIN index with ``gin_trgm_ops``, so a first boot against
+    a fresh database fails at table creation unless pg_trgm is already there.
+    indexes.sql also creates them, but that runs too late to help.
+    """
+    async with engine.connect() as conn:
+        conn = await conn.execution_options(isolation_level="AUTOCOMMIT")
+        for name in REQUIRED_EXTENSIONS:
+            try:
+                await conn.execute(text(f"CREATE EXTENSION IF NOT EXISTS {name}"))
+            except Exception as exc:
+                log.warning("could not create extension %s: %s", name, str(exc).split("\n")[0])
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await _ensure_extensions()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     await _apply_sql_extras()
@@ -85,13 +107,53 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.app_name,
-    docs_url="/api/docs" if settings.debug else None,
+    version="1.0.0",
+    description=(
+        "Campus social network for "
+        f"{settings.campus_name}. The `/api/v1` tree is the contract the Android "
+        "app is built against; every endpoint takes the same session token the "
+        "web app stores in a cookie, presented as `Authorization: Bearer <token>`."
+    ),
+    docs_url="/api/docs",
     redoc_url=None,
-    openapi_url="/api/openapi.json" if settings.debug else None,
+    openapi_url="/api/openapi.json",
     lifespan=lifespan,
 )
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+
+
+# --- CORS -------------------------------------------------------------------
+# The Android app is a native client and sends no Origin, so this exists for the
+# browser-based tooling around the API: the docs page, a future PWA, and local
+# development against a dev server on another port.
+CORS_ORIGIN_RE = (
+    r"(https://([a-z0-9-]+\.)*loyola\.[a-z.]+|http://localhost:\d+|http://127\.0\.0\.1:\d+)"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=CORS_ORIGIN_RE,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-CSRF-Token", "X-Requested-With"],
+)
+
+
+def _cors_headers(request: Request) -> dict[str, str]:
+    """Error responses bypass the CORS middleware, so they re-add the headers.
+
+    Without this a 403 from the API reaches a browser client as an opaque
+    network error instead of the message we carefully wrote.
+    """
+    origin = request.headers.get("origin", "")
+    if origin and re.fullmatch(CORS_ORIGIN_RE, origin):
+        return {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Vary": "Origin",
+        }
+    return {}
 
 
 @app.middleware("http")
@@ -110,9 +172,24 @@ async def security_headers(request: Request, call_next):
     return response
 
 
+def wants_json(request: Request) -> bool:
+    """API clients get JSON errors; the browser gets a page or a redirect."""
+    return request.url.path.startswith("/api/")
+
+
 @app.exception_handler(NeedsVerification)
 async def needs_verification_handler(request: Request, exc: NeedsVerification):
     """The hard wall. Tier 0 sees nothing; Tier 1 may read but not write."""
+    if wants_json(request):
+        return JSONResponse(
+            {
+                "detail": "Verify your student ID to continue.",
+                "code": "verification_required",
+                "tier": exc.tier,
+            },
+            status_code=403,
+            headers=_cors_headers(request),
+        )
     if request.headers.get("HX-Request"):
         response = JSONResponse({"error": "verification required"}, status_code=403)
         response.headers["HX-Redirect"] = "/verify"
@@ -122,6 +199,12 @@ async def needs_verification_handler(request: Request, exc: NeedsVerification):
 
 @app.exception_handler(404)
 async def not_found(request: Request, exc):
+    if wants_json(request):
+        return JSONResponse(
+            {"detail": getattr(exc, "detail", "Not found."), "code": "not_found"},
+            status_code=404,
+            headers=_cors_headers(request),
+        )
     return templates.TemplateResponse(
         request, "errors/404.html", {"title": "Not found"}, status_code=404
     )
@@ -130,6 +213,10 @@ async def not_found(request: Request, exc):
 @app.exception_handler(403)
 async def forbidden(request: Request, exc):
     detail = getattr(exc, "detail", "You do not have access to that.")
+    if wants_json(request):
+        return JSONResponse(
+            {"detail": detail, "code": "forbidden"}, status_code=403, headers=_cors_headers(request)
+        )
     if request.headers.get("HX-Request"):
         return HTMLResponse(f'<div class="flash flash-error">{detail}</div>', status_code=403)
     return templates.TemplateResponse(
@@ -139,6 +226,12 @@ async def forbidden(request: Request, exc):
 
 @app.exception_handler(401)
 async def unauthorized(request: Request, exc):
+    if wants_json(request):
+        return JSONResponse(
+            {"detail": getattr(exc, "detail", "Sign in to continue."), "code": "unauthenticated"},
+            status_code=401,
+            headers=_cors_headers(request),
+        )
     if request.headers.get("HX-Request"):
         response = HTMLResponse("", status_code=401)
         response.headers["HX-Redirect"] = "/login"
@@ -165,6 +258,12 @@ async def healthz():
 
 
 # --- routers ----------------------------------------------------------------
+# The JSON API goes first: its paths are namespaced under /api/v1 and must never
+# be shadowed by the HTML routers' catch-alls.
+from app.api import api_router  # noqa: E402
+
+app.include_router(api_router)
+
 # Order matters only for `pages`, which owns catch-all informational routes and
 # is therefore registered last.
 from importlib import import_module  # noqa: E402

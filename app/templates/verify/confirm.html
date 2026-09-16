@@ -39,11 +39,14 @@
     <div class="panel-body">
       <dl class="kv">
         <dt>Name</dt><dd>{{ f.get('full_name') or '—' }} {{ conf('full_name') }}</dd>
-        <dt>Roll number</dt><dd class="mono">{{ f.get('roll_number') or '—' }} {{ conf('roll_number') }}</dd>
+        <dt>UID / roll number</dt><dd class="mono">{{ f.get('roll_number') or '—' }} {{ conf('roll_number') }}</dd>
         <dt>Course</dt><dd>{{ f.get('course') or '—' }} {{ conf('course') }}</dd>
         <dt>Department</dt><dd>{{ f.get('department') or '—' }} {{ conf('department') }}</dd>
         <dt>Batch</dt><dd>{{ f.get('batch') or '—' }} {{ conf('batch') }}</dd>
         <dt>Valid until</dt><dd>{{ f.get('expiry') or 'not printed' }} {{ conf('expiry') }}</dd>
+        {% if f.get('year_codes') %}
+        <dt>Year codes</dt><dd class="mono">{{ f.get('year_codes')|join(', ') }} {{ conf('year_codes') }}</dd>
+        {% endif %}
       </dl>
 
       {% if record.checks and record.checks.get('soft_fail') %}

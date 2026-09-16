@@ -72,15 +72,38 @@ async def dashboard(request: Request, db: DbDep, user: Admin):
 # --- verification review ----------------------------------------------------
 
 
+# A submission moves pending -> needs_selfie -> in_review -> approved/rejected.
+# Every one of those states needs a bucket here: a record that is only in the
+# queue the reviewer cannot see looks, from the admin side, like a submission
+# that vanished.
+QUEUE_BUCKETS: dict[str, list[str]] = {
+    "in_review": ["in_review"],
+    "waiting_on_student": ["pending", "needs_selfie"],
+    "approved": ["approved"],
+    "rejected": ["rejected"],
+}
+
+
 @router.get("/verifications")
 async def verification_queue(request: Request, db: DbDep, user: Moderator, show: str = "in_review"):
-    stmt = select(VerificationRecord)
-    if show == "in_review":
-        stmt = stmt.where(VerificationRecord.status == "in_review")
-    elif show == "rejected":
-        stmt = stmt.where(VerificationRecord.status == "rejected")
-    else:
-        stmt = stmt.where(VerificationRecord.status == "approved")
+    if show not in QUEUE_BUCKETS:
+        show = "in_review"
+
+    counts = {
+        status: n
+        for status, n in (
+            await db.execute(
+                select(VerificationRecord.status, func.count())
+                .group_by(VerificationRecord.status)
+            )
+        ).all()
+    }
+    bucket_counts = {
+        bucket: sum(counts.get(s, 0) for s in statuses)
+        for bucket, statuses in QUEUE_BUCKETS.items()
+    }
+
+    stmt = select(VerificationRecord).where(VerificationRecord.status.in_(QUEUE_BUCKETS[show]))
 
     records = list(
         (await db.execute(stmt.order_by(VerificationRecord.created_at.asc()).limit(50))).scalars().all()
@@ -104,6 +127,7 @@ async def verification_queue(request: Request, db: DbDep, user: Moderator, show:
             "people": people,
             "devices": devices,
             "show": show,
+            "bucket_counts": bucket_counts,
         },
     )
 

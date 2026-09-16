@@ -1,45 +1,76 @@
-{% from "components/_user.html" import chip, avatar %}
+{% from "components/_user.html" import avatar, tier %}
+{% from "components/_icons.html" import reply, share, flag %}
 
-<article class="row {% if post.is_official %}row--official{% endif %}" id="post-{{ post.id }}">
-  <div class="row-gutter">
-    {% with target_type='post', target_id=post.id, score=post.score, my_vote=my_votes.get(post.id, 0) %}
-      {% include "components/_vote.html" %}
-    {% endwith %}
+<article class="post {% if post.is_official %}post--official{% endif %}" id="post-{{ post.id }}">
+  {# The avatar column and the line under it are what make a column of
+     posts read as a conversation instead of a list of records. #}
+  <div class="post-rail">
+    <a href="/u/{{ post.author.handle }}" aria-label="{{ post.author.full_name }}">{{ avatar(post.author) }}</a>
+    <span class="post-line" aria-hidden="true"></span>
   </div>
 
-  <div class="row-body">
-    <div class="row-meta" style="margin-bottom:.35rem">
-      {{ chip(post.author) }}
-      <span>{{ post.created_at|timeago }}</span>
+  <div class="post-body">
+    <div class="post-head">
+      <a class="post-author" href="/u/{{ post.author.handle }}">{{ post.author.full_name }}</a>
+      {{ tier(post.author) }}
+      {%- for role in post.author.roles or [] %}
+        {%- if role in ('moderator', 'admin', 'club_officer') %}
+        <span class="role-badge">{{ {'moderator':'Moderator','admin':'Admin','club_officer':'Club officer'}[role] }}</span>
+        {%- endif -%}
+      {%- endfor %}
+      <span class="post-dot" aria-hidden="true">·</span>
+      <a class="post-time" href="/p/{{ post.id }}">{{ post.created_at|timeago }}</a>
       {% if post.kind not in ('text', 'image') %}
       <span class="kind kind--{{ post.kind }}">{{ post.kind|capitalize }}</span>
       {% endif %}
       {% if post.is_official %}<span class="stamp">Official notice</span>{% endif %}
-      {% if group %}<a href="/groups/{{ group.slug }}">{{ group.name }}</a>{% endif %}
+      {% if group %}<a class="tag" href="/groups/{{ group.slug }}">{{ group.name }}</a>{% endif %}
     </div>
 
     {% if post.title %}
-    <h3 class="row-title"><a href="/p/{{ post.id }}">{{ post.title }}</a></h3>
+    <h3 class="post-title"><a href="/p/{{ post.id }}">{{ post.title }}</a></h3>
     {% endif %}
 
     {% if post.body %}
-    <div class="row-text">{{ post.body|excerpt(320)|richtext }}</div>
+    <div class="post-text">{{ post.body|excerpt(320)|richtext }}</div>
     {% endif %}
 
     {% if post.link_url %}
-    <p class="row-text"><a href="{{ post.link_url }}" rel="noopener nofollow ugc" target="_blank">{{ post.link_url|excerpt(70) }}</a></p>
+    <a class="post-link" href="{{ post.link_url }}" rel="noopener nofollow ugc" target="_blank">
+      {{ post.link_url|excerpt(70) }}
+    </a>
     {% endif %}
 
     {% if post.media %}
-    <div class="row-media">
+    <div class="post-media">
       <img src="{{ post.media[0].path|media_url }}" alt="" loading="lazy">
     </div>
     {% endif %}
 
-    <div class="row-meta">
-      <a href="/p/{{ post.id }}">{{ post.comment_count|pluralise('reply', 'replies') }}</a>
-      {% for t in post.tags %}<a class="tag" href="/?tag={{ t }}">#{{ t }}</a>{% endfor %}
-      <a class="right muted" href="/report?type=post&amp;id={{ post.id }}">Report</a>
+    <div class="post-actions">
+      {% with target_type='post', target_id=post.id, score=post.score,
+              my_vote=my_votes.get(post.id, 0), vote_style='inline' %}
+        {% include "components/_vote.html" %}
+      {% endwith %}
+
+      <a class="act" href="/p/{{ post.id }}" aria-label="{{ post.comment_count|pluralise('reply', 'replies') }}">
+        <span class="act-ico">{{ reply() }}</span>
+        <span class="act-num">{{ post.comment_count }}</span>
+      </a>
+
+      <a class="act" href="/p/{{ post.id }}" aria-label="Open this post">
+        <span class="act-ico">{{ share() }}</span>
+      </a>
+
+      <a class="act right" href="/report?type=post&amp;id={{ post.id }}" aria-label="Report this post" title="Report">
+        <span class="act-ico">{{ flag() }}</span>
+      </a>
     </div>
+
+    {% if post.tags %}
+    <div class="post-stats">
+      {% for t in post.tags %}<a class="tag" href="/?tag={{ t }}">#{{ t }}</a>{% endfor %}
+    </div>
+    {% endif %}
   </div>
 </article>

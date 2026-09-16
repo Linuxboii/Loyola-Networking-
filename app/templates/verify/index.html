@@ -99,7 +99,7 @@
       <div class="btn-row">
         <button type="submit" class="btn" disabled>Read my card</button>
         <span class="muted">
-          {{ attempts_used|default(0) }} of {{ attempts_allowed|default(3) }} attempts used this week
+          {{ attempts_used|default(0) }} of {{ attempts_allowed|default(VERIFY_ATTEMPTS) }} attempts used this week
         </span>
       </div>
     </div>

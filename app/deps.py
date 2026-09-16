@@ -57,8 +57,24 @@ class NeedsVerification(Exception):
         self.tier = tier
 
 
-async def load_session_user(request: Request, db: AsyncSession) -> User | None:
+def session_token_from(request: Request) -> str | None:
+    """The session token, from the cookie (web) or a bearer header (mobile).
+
+    The Android client cannot hold an httponly cookie, so it presents the very
+    same opaque token as ``Authorization: Bearer``. One session table, one
+    revocation path, one expiry rule for both clients.
+    """
     raw = request.cookies.get(settings.session_cookie)
+    if raw:
+        return raw
+    header = request.headers.get("authorization") or ""
+    if header.lower().startswith("bearer "):
+        return header[7:].strip() or None
+    return None
+
+
+async def load_session_user(request: Request, db: AsyncSession) -> User | None:
+    raw = session_token_from(request)
     if not raw:
         return None
     row = (

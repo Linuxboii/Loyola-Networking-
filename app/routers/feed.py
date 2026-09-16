@@ -8,18 +8,10 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from app.deps import (
-    NEWCOMER_POSTS_PER_DAY,
-    DbDep,
-    Reader,
-    Verified,
-    can,
-    client_ip,
-    verify_csrf,
-)
-from app.models import POST_TYPES, Comment, Group, GroupMember, PollOption, PollVote, Post
+from app.deps import DbDep, Reader, Verified, client_ip, verify_csrf
+from app.models import POST_TYPES, Comment, Group, PollOption, PollVote, Post
 from app.security import device_fingerprint
-from app.services import antiabuse, feed as feed_service, media, notify
+from app.services import antiabuse, feed as feed_service, media, posting
 from app.services import moderation as mod
 from app.services import reputation as rep
 from app.services.voting import VoteError, cast_vote
@@ -34,17 +26,6 @@ def _fp(request: Request) -> str:
         request.headers.get("accept-language"),
         client_ip(request),
     )
-
-
-def _tags(raw: str | None) -> list[str]:
-    if not raw:
-        return []
-    parts = [t.strip().lstrip("#").lower() for t in raw.replace(",", " ").split()]
-    seen: list[str] = []
-    for p in parts:
-        if p and p not in seen and len(p) <= 40:
-            seen.append(p)
-    return seen[:6]
 
 
 @router.get("/")
@@ -96,52 +77,12 @@ async def create_post(
 ):
     await verify_csrf(request)
 
-    if kind not in POST_TYPES:
-        kind = "text"
-    body = (body or "").strip()
-    title = (title or "").strip()
-
-    if not body and not title and kind != "image":
-        raise HTTPException(status_code=400, detail="Write something first.")
-
-    # Newcomers are capped at five posts a day (PRD 6.4); Contributor lifts it.
-    if not can(user, "unlimited_posting"):
-        allowed, remaining = await antiabuse.hit_rate_limit(
-            db, f"post:{user.id}", NEWCOMER_POSTS_PER_DAY, dt.timedelta(days=1)
-        )
-        if not allowed:
-            raise HTTPException(
-                status_code=429,
-                detail=f"Newcomers can post {NEWCOMER_POSTS_PER_DAY} times a day. "
-                "Reach Contributor for unlimited posting.",
-            )
-    if kind == "poll" and not can(user, "create_poll"):
-        raise HTTPException(status_code=403, detail="Polls unlock at Contributor standing.")
-    if kind == "notice" and not (user.is_moderator or "club_officer" in (user.roles or [])):
-        raise HTTPException(status_code=403, detail="Only verified office-bearers can post notices.")
-
-    lists = await mod.load_lists(db)
-    screen = mod.screen(f"{title}\n{body}", lists)
-    if screen["verdict"] == "block":
-        raise HTTPException(
-            status_code=400,
-            detail="That post breaks the community rules and was not published.",
-        )
-
-    gid = None
+    gid: int | None = None
     if group_id:
         try:
             gid = int(group_id)
         except ValueError:
             gid = None
-        if gid is not None:
-            membership = (
-                await db.execute(
-                    select(GroupMember).where(GroupMember.group_id == gid, GroupMember.user_id == user.id)
-                )
-            ).scalar_one_or_none()
-            if membership is None:
-                raise HTTPException(status_code=403, detail="Join the group before posting in it.")
 
     media_items: list[dict] = []
     if image is not None and image.filename:
@@ -151,47 +92,22 @@ async def create_post(
                 raise HTTPException(status_code=400, detail="That attachment is not an image.")
             media_items.append({"path": media.save_public(data, subdir="posts"), "type": "image"})
 
-    post = Post(
-        author_id=user.id,
-        kind=kind,
-        title=title[:200] or None,
-        body=body,
-        tags=_tags(tags),
-        link_url=(link_url or "").strip()[:500] or None,
-        group_id=gid,
-        media=media_items,
-        is_official=(kind == "notice"),
-    )
-    db.add(post)
-    await db.flush()
-
-    if kind == "poll":
-        options = [o.strip()[:120] for o in (poll_options or "").splitlines() if o.strip()][:8]
-        if len(options) < 2:
-            raise HTTPException(status_code=400, detail="A poll needs at least two options.")
-        for i, label in enumerate(options):
-            db.add(PollOption(post_id=post.id, label=label, position=i))
-        await rep.award(db, user.id, "poll_created", source_type="post", source_id=post.id)
-
-    if screen["verdict"] == "crisis":
-        await mod.raise_crisis(db, user.id, "post", post.id, body)
-    elif screen["verdict"] in {"flag", "review"}:
-        from app.models import Report
-
-        db.add(
-            Report(
-                reporter_id=user.id,
-                target_type="post",
-                target_id=post.id,
-                target_author_id=user.id,
-                category="other" if screen["verdict"] == "flag" else "misinformation",
-                detail=f"Automated filter: {screen['verdict']} ({', '.join(screen['profanity']) or 'faculty opinion'})",
-                source="auto",
-                status="open",
-            )
+    try:
+        post = await posting.create_post(
+            db,
+            user,
+            kind=kind,
+            title=title,
+            body=body,
+            tags=tags,
+            link_url=link_url,
+            group_id=gid,
+            media_items=media_items,
+            poll_options=(poll_options or "").splitlines(),
         )
+    except posting.PostingError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail) from exc
 
-    await db.flush()
     return RedirectResponse(f"/p/{post.id}", status_code=303)
 
 
@@ -267,57 +183,17 @@ async def add_comment(
     if post is None or post.status != "active":
         raise HTTPException(status_code=404)
 
-    body = (body or "").strip()
-    if not body:
-        raise HTTPException(status_code=400, detail="Write something first.")
-
-    allowed, _ = await antiabuse.hit_rate_limit(db, f"comment:{user.id}", 40, dt.timedelta(hours=1))
-    if not allowed:
-        raise HTTPException(status_code=429, detail="You are commenting very fast. Take a breath.")
-
-    lists = await mod.load_lists(db)
-    screen = mod.screen(body, lists)
-    if screen["verdict"] == "block":
-        raise HTTPException(status_code=400, detail="That comment breaks the community rules.")
-
-    parent = None
+    parent: int | None = None
     if parent_id:
         try:
-            parent = await db.get(Comment, int(parent_id))
+            parent = int(parent_id)
         except ValueError:
             parent = None
 
-    comment = Comment(
-        post_id=post_id,
-        parent_id=parent.id if parent else None,
-        author_id=user.id,
-        body=body,
-    )
-    db.add(comment)
-    post.comment_count = (post.comment_count or 0) + 1
-    await db.flush()
-
-    if screen["verdict"] == "crisis":
-        await mod.raise_crisis(db, user.id, "comment", comment.id, body)
-
-    await notify.push(
-        db,
-        post.author_id,
-        kind="comment",
-        title=f"{user.full_name} commented on your post",
-        body=body[:200],
-        link=f"/p/{post_id}#c{comment.id}",
-        skip_if_self=user.id,
-    )
-    if parent and parent.author_id not in {user.id, post.author_id}:
-        await notify.push(
-            db,
-            parent.author_id,
-            kind="reply",
-            title=f"{user.full_name} replied to you",
-            body=body[:200],
-            link=f"/p/{post_id}#c{comment.id}",
-        )
+    try:
+        comment = await posting.add_comment(db, user, post, body=body, parent_id=parent)
+    except posting.PostingError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail) from exc
 
     return RedirectResponse(f"/p/{post_id}#c{comment.id}", status_code=303)
 
@@ -330,6 +206,7 @@ async def vote(
     target_type: str,
     target_id: int,
     value: int = Form(...),
+    style: str = Form("stack"),
 ):
     await verify_csrf(request)
     allowed, _ = await antiabuse.hit_rate_limit(db, f"vote:{user.id}", 200, dt.timedelta(hours=1))
@@ -352,6 +229,8 @@ async def vote(
                 "target_id": target_id,
                 "score": result["score"],
                 "my_vote": result["my_vote"],
+                # Never trust the posted value into a template branch.
+                "vote_style": "inline" if style == "inline" else "stack",
             },
         )
     return JSONResponse(result)

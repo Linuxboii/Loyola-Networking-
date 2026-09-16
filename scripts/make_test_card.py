@@ -1,9 +1,15 @@
 """Generate synthetic ID cards to exercise the OCR pipeline.
 
-These are stand-ins until real Loyola Academy cards are available. They imitate
-the usual Indian college layout: institution banner, portrait, labelled fields.
+``render_card`` is the generic Indian-college layout. ``render_loyola_card``
+reproduces the actual Loyola Academy specimen: a right-hand blue panel, the
+``UID NO`` box, a clumped course abbreviation and three per-year programme code
+rows instead of a labelled batch.
+
 Variations (rotation, blur, glare, perspective) let us check the pipeline copes
 with a phone snapshot rather than a flatbed scan.
+
+The UID here is synthetic — it matches the real card's 12-digit shape without
+carrying a real student's number into the repository.
 """
 from __future__ import annotations
 
@@ -87,6 +93,81 @@ def render_card(
     return img
 
 
+LOYOLA_UID = "111725039001"
+LOYOLA_COURSE = "B.Sc. Comp.Sci. & Cog .Sys."
+# Programme codes run one per academic year; the last row's end year is the
+# graduation year and matches the printed expiry.
+LOYOLA_CODES = ["ACSC", "NCSC", "DCSC"]
+
+
+def render_loyola_card(
+    name="PARAYIL JOHN SHIBU",
+    uid=LOYOLA_UID,
+    course=LOYOLA_COURSE,
+    start_year: int | None = None,
+    codes=tuple(LOYOLA_CODES),
+) -> Image.Image:
+    """Reproduce the Loyola Academy specimen layout as closely as type allows."""
+    start = start_year or dt.date.today().year
+    grad = start + len(codes)
+
+    img = Image.new("RGB", (W, H), (250, 246, 240))
+    d = ImageDraw.Draw(img)
+
+    def fit(xy, text, max_w, size, bold=False, fill=(20, 24, 32)):
+        """Draw text, shrinking the face until it stays inside ``max_w``.
+
+        The fixture has to stay legible to Tesseract above all else, and a line
+        that runs off the card or over the blue panel reads as garbage.
+        """
+        font = _font(size, bold)
+        while size > 9 and d.textlength(text, font=font) > max_w:
+            size -= 1
+            font = _font(size, bold)
+        d.text(xy, text, font=font, fill=fill)
+        return size
+
+    # Right-hand blue panel carrying the institution's name and the crest.
+    panel_x = int(W * 0.66)
+    panel_w = W - panel_x
+    d.rectangle([panel_x, 0, W, H], fill=(96, 112, 208))
+    d.ellipse([panel_x + 110, 24, panel_x + 232, 146], fill=(250, 250, 252), outline=(40, 52, 130), width=3)
+    fit((panel_x + 140, 76), "WISDOM", 80, 14, True, (40, 52, 130))
+    fit((panel_x + 16, 186), "LOYOLA ACADEMY", panel_w - 32, 34, True, (255, 255, 255))
+    fit((panel_x + 16, 228), "(Autonomous)", panel_w - 32, 24, False, (255, 255, 255))
+    fit((panel_x + 16, 272), "DEGREE & PG COLLEGE", panel_w - 32, 26, True, (255, 255, 255))
+    fit((panel_x + 16, 316), "A College with Potential", panel_w - 32, 17, False, (236, 240, 255))
+    fit((panel_x + 16, 340), "for Excellence", panel_w - 32, 17, False, (236, 240, 255))
+
+    # Portrait, upper left.
+    px, py, pw, ph = 96, 40, 200, 232
+    d.rectangle([px, py, px + pw, py + ph], fill=(112, 176, 226))
+    cx, cy = px + pw // 2, py + 96
+    d.ellipse([cx - 54, cy - 54, cx + 54, cy + 54], fill=(120, 86, 62))
+    d.ellipse([cx - 62, cy + 60, cx + 62, cy + 180], fill=(226, 220, 196))
+
+    # Detail column, kept clear of the blue panel.
+    col_x, val_x = 330, 452
+    right = panel_x - 16
+    d.rectangle([col_x - 6, 40, right, 84], outline=(198, 52, 52), width=2)
+    fit((col_x, 48), f"UID NO :{uid}", right - col_x - 10, 24, True)
+
+    fit((col_x, 116), "Name", 110, 24, True)
+    fit((val_x, 116), f": {name}", right - val_x, 24, True)
+    fit((col_x, 166), "Course", 110, 24, True)
+    fit((val_x, 166), f":{course}", right - val_x, 24, True)
+
+    y = 212
+    for i, code in enumerate(codes):
+        fit((val_x + 40, y), f"{code} {start + i} {start + i + 1}", right - val_x - 40, 22, True)
+        y += 44
+
+    # "VALID UPTO" sits along the left edge, below the portrait on the real card.
+    fit((60, H - 210), f"VALID UPTO APRIL {grad}", 260, 24, True)
+    fit((96, H - 120), "Principal", 200, 24, True, (198, 52, 52))
+    return img
+
+
 def distort(img: Image.Image, mode: str, seed: int = 7) -> np.ndarray:
     random.seed(seed)
     arr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
@@ -123,10 +204,26 @@ def distort(img: Image.Image, mode: str, seed: int = 7) -> np.ndarray:
         arr = cv2.rotate(arr, cv2.ROTATE_90_CLOCKWISE)
 
     if mode == "glare":
-        overlay = arr.copy()
         h, w = arr.shape[:2]
-        cv2.ellipse(overlay, (int(w * 0.62), int(h * 0.36)), (int(w * 0.20), int(h * 0.16)), 25, 0, 360, (255, 255, 255), -1)
-        arr = cv2.addWeighted(overlay, 0.42, arr, 0.58, 0)
+        # A white ellipse blended over an already-pure-white card is not a
+        # glare fixture: it changes nothing a detector could ever see, which is
+        # why the old "glare" card and the "clean" card both scored 0.63 on the
+        # glare check and the test proved nothing. A real torch reflection is
+        # brighter than the paper around it, which means the rest of the
+        # capture sits below clipping — so pull the exposure down first, then
+        # burn in a soft specular blob. It sits over the portrait, where a
+        # laminated card usually catches the light and where it does not eat
+        # the printed fields the scorecard checks.
+        arr = cv2.convertScaleAbs(arr, alpha=0.78, beta=0)
+        hot = np.zeros((h, w), np.float32)
+        cv2.ellipse(
+            hot,
+            (int(w * 0.14), int(h * 0.52)),
+            (int(w * 0.15), int(h * 0.18)),
+            25, 0, 360, 1.0, -1,
+        )
+        hot = cv2.GaussianBlur(hot, (0, 0), max(6.0, w * 0.02))
+        arr = np.clip(arr.astype(np.float32) + hot[..., None] * 190.0, 0, 255).astype(np.uint8)
 
     if mode == "dim":
         arr = cv2.convertScaleAbs(arr, alpha=0.55, beta=-12)
@@ -155,7 +252,19 @@ def main(outdir: str = "/tmp/loyola-cards") -> None:
         label_roll="Admission No",
     )
     cv2.imwrite(str(out / "card_alt.jpg"), distort(alt, "phone", seed=11), [int(cv2.IMWRITE_JPEG_QUALITY), 86])
-    print(f"wrote {len(VARIANTS) + 1} cards to {out}")
+
+    # The real Loyola layout, clean and as a rotated phone snapshot — the way
+    # the specimen was actually photographed.
+    loyola = render_loyola_card()
+    written = len(VARIANTS) + 1
+    for v in ("clean", "phone", "rotated"):
+        cv2.imwrite(
+            str(out / f"card_loyola_{v}.jpg"),
+            distort(loyola, v, seed=13),
+            [int(cv2.IMWRITE_JPEG_QUALITY), 86],
+        )
+        written += 1
+    print(f"wrote {written} cards to {out}")
 
 
 if __name__ == "__main__":

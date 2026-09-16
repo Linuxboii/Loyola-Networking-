@@ -52,14 +52,31 @@ def decode(data: bytes) -> np.ndarray | None:
     return img
 
 
+def glare_ratio(gray: np.ndarray) -> float:
+    """Fraction of the frame lost to a specular hotspot.
+
+    Counting every pixel brighter than 250 does not measure glare, it measures
+    how much white card is in the picture: a clean capture of a white ID card
+    scored 0.637 and one ruined by a torch reflection scored 0.639, so the
+    check never once told the two apart. What actually marks a reflection is
+    that it is *locally* brighter than the rest of the card — so blur the print
+    away to leave the illumination field, then look for a region standing clear
+    of the card's own paper level.
+    """
+    small = downscale(gray, 256).astype(np.float32)
+    illum = cv2.GaussianBlur(small, (0, 0), 6)
+    paper = float(np.median(illum))
+    hot = (illum >= paper + 25) & (illum >= 240)
+    return float(hot.sum()) / float(hot.size)
+
+
 def assess(img: np.ndarray) -> QualityReport:
     """Reject unusable captures before spending CPU on OCR."""
     h, w = img.shape[:2]
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
     blur = float(cv2.Laplacian(gray, cv2.CV_64F).var())
     brightness = float(gray.mean())
-    # Fraction of pixels blown out — a torch reflection off a laminated card.
-    glare = float((gray > 250).sum()) / float(gray.size)
+    glare = glare_ratio(gray)
 
     problems: list[str] = []
     if max(h, w) < MIN_LONG_EDGE:
@@ -68,11 +85,37 @@ def assess(img: np.ndarray) -> QualityReport:
         problems.append("blurry")
     if brightness < 45:
         problems.append("too_dark")
-    elif brightness > 225:
+    # Measured on the card rather than the whole frame, a correctly exposed
+    # white ID card sits in the 200-235 range on its own — the old 225 ceiling
+    # was calibrated against captures diluted by whatever desk they were taken
+    # on, and now flags good photos. Past 242 there is no ink left to read.
+    elif brightness > 242:
         problems.append("too_bright")
-    if glare > 0.10:
+    if glare > 0.06:
         problems.append("glare")
     return QualityReport(w, h, blur, brightness, glare, problems)
+
+
+def assess_card(card: np.ndarray, original: np.ndarray) -> QualityReport:
+    """Re-measure quality once the card has been found and flattened.
+
+    ``assess`` has to run on the raw upload so a too-small capture is rejected
+    before any CPU is spent on it, but every other number it produces there is
+    measured over whatever else was in the frame — the desk, a sleeve, the dark
+    border around a phone snapshot. Brightness gets dragged toward the
+    background and the glare test compares the card against a median that is
+    not the card's, which is how a plain grey desk used to make a perfectly
+    exposed card look like it was covered in reflections. The size verdict
+    still comes from the original capture, because that is what the "hold the
+    card closer" advice refers to.
+    """
+    rep = assess(card)
+    h, w = original.shape[:2]
+    rep.width, rep.height = w, h
+    rep.problems = [p for p in rep.problems if p != "too_small"]
+    if max(h, w) < MIN_LONG_EDGE:
+        rep.problems.insert(0, "too_small")
+    return rep
 
 
 def _order_corners(pts: np.ndarray) -> np.ndarray:

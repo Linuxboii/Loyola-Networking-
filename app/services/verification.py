@@ -399,6 +399,82 @@ async def reject(
     await db.flush()
 
 
+async def verify_manually(
+    db: AsyncSession,
+    user: User,
+    *,
+    actor_id: int | None,
+    roll_number: str,
+    full_name: str | None = None,
+    course: str | None = None,
+    department: str | None = None,
+    batch_year: int | None = None,
+    note: str = "",
+    allow_reverify: bool = False,
+) -> VerificationRecord:
+    """Verify a student at the office counter, with no card photo at all.
+
+    Every campus has the cases OCR cannot serve: a faded card, a reissued one
+    with no photo, a student whose card is with the office for correction. The
+    PRD's guarantee is one account per roll number, not one account per
+    successful OCR — so this path exists, is restricted to admins, and is
+    audited exactly like an OCR-backed approval.
+
+    ``roll_number`` is unique in the database, so an attempt to attach a roll
+    number that already belongs to someone else fails loudly here rather than
+    creating a second account for one student.
+    """
+    roll = (roll_number or "").strip().upper()
+    if not roll:
+        raise ValueError("A roll number is required.")
+    if user.tier >= TIER_VERIFIED and not allow_reverify:
+        # Re-running this on a verified account silently rewrites identity
+        # fields that are meant to be immutable, so it takes a deliberate
+        # override rather than a typo in a handle.
+        raise ValueError(
+            f"@{user.handle} is already verified as {user.roll_number}. "
+            "Pass allow_reverify to correct it."
+        )
+
+    clash = (
+        await db.execute(select(User).where(User.roll_number == roll, User.id != user.id))
+    ).scalar_one_or_none()
+    if clash is not None:
+        raise ValueError(f"Roll number {roll} already belongs to @{clash.handle}.")
+
+    user.roll_number = roll
+    if full_name:
+        user.full_name = full_name[:120]
+    if course:
+        user.course = course[:80]
+    if department:
+        user.department = department[:80]
+    if batch_year:
+        user.batch_year = batch_year
+
+    record = VerificationRecord(
+        user_id=user.id,
+        status="pending",
+        confidence=1.0,
+        extracted={
+            "roll_number": roll,
+            "full_name": user.full_name,
+            "course": user.course,
+            "department": user.department,
+            "batch_year": user.batch_year,
+        },
+        checks={"manual": True, "note": note[:500]},
+        # No card image exists, so there is nothing to purge and nothing to
+        # decrypt later — the audit trail is the moderation log alone.
+        purge_after=None,
+    )
+    db.add(record)
+    await db.flush()
+
+    await approve(db, record, actor_id, note=note or "Verified at the office counter")
+    return record
+
+
 async def latest_record(db: AsyncSession, user_id: int) -> VerificationRecord | None:
     return (
         await db.execute(

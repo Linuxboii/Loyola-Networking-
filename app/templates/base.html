@@ -6,11 +6,12 @@
 <meta name="csrf" content="{{ csrf_token(request) }}">
 <meta name="robots" content="noindex, nofollow">
 <title>{% block head_title %}{{ title }} · {{ APP_NAME }}{% endblock %}</title>
-<link rel="stylesheet" href="/static/css/app.css">
+<link rel="stylesheet" href="{{ asset('/static/css/app.css') }}">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 </head>
 <body>
 
+{% from "components/_user.html" import avatar %}
 {% set me = request.state.me|default(none) %}
 {% set unread_count = request.state.unread|default(0) %}
 {% set open_reports = request.state.open_reports|default(0) %}
@@ -33,7 +34,30 @@
           Alerts{% if unread_count %} <span class="nav-count">{{ unread_count }}</span>{% endif %}
         </a>
         {% endif %}
-        <a class="btn btn--ghost btn--sm" href="/u/{{ me.handle }}">{{ me.full_name|initials }}</a>
+        {# <details> rather than a scripted dropdown: it opens, closes and is
+           keyboard-reachable with no JavaScript at all. app.js only adds the
+           click-outside and Escape niceties on top. #}
+        <details class="menu" data-menu>
+          <summary class="masthead-me" aria-label="Account menu" title="{{ me.full_name }}">
+            {{ avatar(me, 'avatar--sm') }}
+          </summary>
+          <div class="menu-pop" role="menu">
+            <div class="menu-who">
+              <strong>{{ me.full_name }}</strong>
+              <span class="muted">@{{ me.handle }}</span>
+            </div>
+            {% if me.tier >= 1 %}
+            <a role="menuitem" href="/u/{{ me.handle }}">Your profile</a>
+            <a role="menuitem" href="/me/reputation">Your reputation</a>
+            {% endif %}
+            <a role="menuitem" href="/settings/account">Account settings</a>
+            {% if me.is_admin %}<a role="menuitem" href="/admin">Admin console</a>{% endif %}
+            <form method="post" action="/logout" class="menu-sep">
+              <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+              <button type="submit" role="menuitem">Log out</button>
+            </form>
+          </div>
+        </details>
       {% else %}
         <a class="btn btn--ghost btn--sm" href="/login">Sign in</a>
         <a class="btn btn--sm" href="/signup">Create account</a>
@@ -109,15 +133,16 @@
 </div>
 
 {% if me and me.tier >= 1 %}
+{% from "components/_icons.html" import home, question, search, calendar, person %}
 <nav class="mobile-nav" aria-label="Sections">
-  <a href="/" {% if request.url.path == '/' %}aria-current="page"{% endif %}><span class="ico">▤</span>Feed</a>
-  <a href="/qa" {% if request.url.path.startswith('/qa') %}aria-current="page"{% endif %}><span class="ico">?</span>Questions</a>
-  <a href="/search" {% if request.url.path.startswith('/search') %}aria-current="page"{% endif %}><span class="ico">⌕</span>Search</a>
-  <a href="/events" {% if request.url.path.startswith('/events') %}aria-current="page"{% endif %}><span class="ico">▦</span>Events</a>
-  <a href="/u/{{ me.handle }}" {% if request.url.path.startswith('/u/') %}aria-current="page"{% endif %}><span class="ico">◇</span>You</a>
+  <a href="/" {% if request.url.path == '/' %}aria-current="page"{% endif %}><span class="ico">{{ home() }}</span>Feed</a>
+  <a href="/qa" {% if request.url.path.startswith('/qa') %}aria-current="page"{% endif %}><span class="ico">{{ question() }}</span>Questions</a>
+  <a href="/search" {% if request.url.path.startswith('/search') %}aria-current="page"{% endif %}><span class="ico">{{ search() }}</span>Search</a>
+  <a href="/events" {% if request.url.path.startswith('/events') %}aria-current="page"{% endif %}><span class="ico">{{ calendar() }}</span>Events</a>
+  <a href="/u/{{ me.handle }}" {% if request.url.path.startswith('/u/') %}aria-current="page"{% endif %}><span class="ico">{{ person() }}</span>You</a>
 </nav>
 {% endif %}
 
-<script src="/static/js/app.js" defer></script>
+<script src="{{ asset('/static/js/app.js') }}" defer></script>
 </body>
 </html>

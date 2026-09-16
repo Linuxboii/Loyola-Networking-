@@ -32,7 +32,11 @@
         box.dataset.busy = "1";
 
         post("/vote/" + box.dataset.targetType + "/" + box.dataset.targetId, {
-            value: btn.dataset.vote
+            value: btn.dataset.vote,
+            // The feed renders a Threads-style inline like; every other page
+            // renders stacked arrows. Send the dialect so the re-render that
+            // replaces this box comes back in the same one.
+            style: box.dataset.voteStyle || "stack"
         }).then(function (r) {
             return r.text().then(function (html) {
                 if (r.ok) {
@@ -66,7 +70,9 @@
             var wrap = document.createElement("div");
             wrap.innerHTML = html;
             var next = wrap.querySelector("[data-next-url]");
-            while (wrap.firstElementChild && wrap.firstElementChild.classList.contains("row")) {
+            while (wrap.firstElementChild &&
+                   (wrap.firstElementChild.classList.contains("post") ||
+                    wrap.firstElementChild.classList.contains("row"))) {
                 target.appendChild(wrap.firstElementChild);
             }
             if (next && next.dataset.nextUrl) {
@@ -233,6 +239,25 @@
             });
         }
         window.addEventListener("pagehide", stop);
+    });
+
+    /* ------------------------------------------------------ account menu
+       The <details> already opens and closes on its own; this only adds the
+       two behaviours a native disclosure lacks — click away to dismiss, and
+       Escape to dismiss with focus put back on the trigger. */
+    document.addEventListener("click", function (e) {
+        document.querySelectorAll("[data-menu][open]").forEach(function (menu) {
+            if (!menu.contains(e.target)) menu.open = false;
+        });
+    });
+
+    document.addEventListener("keydown", function (e) {
+        if (e.key !== "Escape") return;
+        document.querySelectorAll("[data-menu][open]").forEach(function (menu) {
+            menu.open = false;
+            var trigger = menu.querySelector("summary");
+            if (trigger) trigger.focus();
+        });
     });
 
     /* ------------------------------------------------ mark notifications */

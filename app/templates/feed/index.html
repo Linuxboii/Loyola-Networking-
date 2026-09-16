@@ -4,69 +4,67 @@
 {% block content %}
 
 {% if me.tier >= 2 %}
-<form class="panel" method="post" action="/posts" enctype="multipart/form-data" style="margin-bottom:1rem">
-  <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
-  <div class="panel-body">
-    <div style="display:flex;gap:.75rem;align-items:flex-start">
-      {{ avatar(me) }}
-      <div style="flex:1;min-width:0">
-        <div class="field" style="margin-bottom:.6rem">
-          <label class="sr-only" for="body" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">What is happening on campus?</label>
-          <textarea id="body" name="body" rows="2" placeholder="Share something with campus" style="min-height:3.2rem"></textarea>
-        </div>
+{# The composer sits on the same rounded surface the feed uses, so starting
+   a post feels like writing straight into the column rather than filling in
+   a form that happens to be above it. #}
+<div class="board" style="margin-bottom:1rem">
+  <form class="composer" method="post" action="/posts" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
 
-        <div class="field-row" style="margin-bottom:.6rem">
-          <div>
-            <label for="kind">Type</label>
-            <select id="kind" name="kind" data-kind-picker>
-              <option value="text">Post</option>
-              <option value="image">Photo</option>
-              <option value="link">Link</option>
-              <option value="poll" {% if not can(me, 'create_poll') %}disabled{% endif %}>
-                Poll{% if not can(me, 'create_poll') %} — needs Contributor{% endif %}
-              </option>
-              {% if me.is_moderator or 'club_officer' in (me.roles or []) %}
-              <option value="notice">Official notice</option>
-              {% endif %}
-            </select>
-          </div>
-          <div>
-            <label for="tags">Tags</label>
-            <input id="tags" name="tags" type="text" placeholder="placements dbms fest">
-          </div>
-        </div>
+    <div class="post-rail">{{ avatar(me) }}</div>
 
-        <div class="field" data-for-kind="link" hidden>
-          <label for="link_url">Link</label>
-          <input id="link_url" name="link_url" type="url" placeholder="https://">
-        </div>
+    <div style="min-width:0">
+      <label class="sr-only" for="body">What is happening on campus?</label>
+      <textarea id="body" name="body" rows="2" placeholder="What's happening on campus?"></textarea>
 
-        <div class="field" data-for-kind="image notice" hidden>
-          <label for="image">Image</label>
-          <input id="image" name="image" type="file" accept="image/*">
-        </div>
-
-        <div class="field" data-for-kind="poll notice" hidden>
-          <label for="title">Title</label>
-          <input id="title" name="title" type="text" maxlength="200">
-        </div>
-
-        <div class="field" data-for-kind="poll" hidden>
-          <label for="poll_options">Poll options</label>
-          <textarea id="poll_options" name="poll_options" rows="3" placeholder="One option per line"></textarea>
-        </div>
-
-        <div class="btn-row">
-          <button type="submit" class="btn">Post</button>
-          <a class="btn btn--ghost" href="/qa/ask">Ask a question instead</a>
-          {% if not can(me, 'unlimited_posting') %}
-          <span class="muted">Newcomers post 5 times a day</span>
-          {% endif %}
-        </div>
+      <div class="field" data-for-kind="link" hidden style="margin:.6rem 0 0">
+        <label for="link_url">Link</label>
+        <input id="link_url" name="link_url" type="url" placeholder="https://">
       </div>
+
+      <div class="field" data-for-kind="image notice" hidden style="margin:.6rem 0 0">
+        <label for="image">Image</label>
+        <input id="image" name="image" type="file" accept="image/*">
+      </div>
+
+      <div class="field" data-for-kind="poll notice" hidden style="margin:.6rem 0 0">
+        <label for="title">Title</label>
+        <input id="title" name="title" type="text" maxlength="200">
+      </div>
+
+      <div class="field" data-for-kind="poll" hidden style="margin:.6rem 0 0">
+        <label for="poll_options">Poll options</label>
+        <textarea id="poll_options" name="poll_options" rows="3" placeholder="One option per line"></textarea>
+      </div>
+
+      <div class="composer-tools">
+        <label for="kind">Type</label>
+        <select id="kind" name="kind" data-kind-picker aria-label="Post type">
+          <option value="text">Post</option>
+          <option value="image">Photo</option>
+          <option value="link">Link</option>
+          <option value="poll" {% if not can(me, 'create_poll') %}disabled{% endif %}>
+            Poll{% if not can(me, 'create_poll') %} — needs Contributor{% endif %}
+          </option>
+          {% if me.is_moderator or 'club_officer' in (me.roles or []) %}
+          <option value="notice">Official notice</option>
+          {% endif %}
+        </select>
+
+        <label for="tags">Tags</label>
+        <input id="tags" name="tags" type="text" placeholder="placements dbms fest" aria-label="Tags">
+
+        <a class="act" href="/qa/ask" style="font-weight:600">Ask instead</a>
+
+        <button type="submit" class="btn right">Post</button>
+      </div>
+
+      {% if not can(me, 'unlimited_posting') %}
+      <p class="hint" style="margin-top:.5rem">Newcomers post 5 times a day.</p>
+      {% endif %}
     </div>
-  </div>
-</form>
+  </form>
+</div>
 {% endif %}
 
 <div class="tabs">

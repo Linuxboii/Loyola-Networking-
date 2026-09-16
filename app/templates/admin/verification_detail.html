@@ -84,6 +84,9 @@
       <dt>Department</dt><dd>{{ f.get('department') or '—' }}</dd>
       <dt>Batch</dt><dd>{{ f.get('batch') or '—' }}</dd>
       <dt>Expiry</dt><dd>{{ f.get('expiry') or 'not printed' }}</dd>
+      {% if f.get('year_codes') %}
+      <dt>Year codes</dt><dd class="mono">{{ f.get('year_codes')|join(', ') }}</dd>
+      {% endif %}
     </dl>
 
     <h4 style="margin-top:1rem">Automated checks</h4>
