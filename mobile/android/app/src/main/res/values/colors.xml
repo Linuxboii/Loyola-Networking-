@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The same deep academic blue as AppTheme._seed in lib/core/theme.dart. -->
+    <color name="ic_launcher_background">#1B3A6B</color>
+    <color name="launch_background">#F7F6F3</color>
+</resources>
