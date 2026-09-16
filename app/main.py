@@ -250,10 +250,18 @@ async def healthz():
         db_ok = True
     except Exception:
         db_ok = False
-    healthy = db_ok and ok
+
+    # Only the database decides whether this process should take traffic. A
+    # missing tesseract stops new students verifying by card — which the manual
+    # path covers — but everyone already inside keeps working, so pulling the
+    # app out of rotation for it would turn a partial outage into a total one.
     return JSONResponse(
-        {"status": "ok" if healthy else "degraded", "db": db_ok, "tesseract": version if ok else None},
-        status_code=200 if healthy else 503,
+        {
+            "status": "ok" if (db_ok and ok) else "degraded" if db_ok else "down",
+            "db": db_ok,
+            "tesseract": version if ok else None,
+        },
+        status_code=200 if db_ok else 503,
     )
 
 
