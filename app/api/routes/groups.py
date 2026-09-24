@@ -59,7 +59,7 @@ async def detail(slug: str, db: DbDep, user: Reader):
     )
     return {
         **group_out(group, membership=membership.role if membership else None),
-        "members": [user_card(m) for m in members],
+        "members": [user_card(m, viewer_is_moderator=user.is_moderator) for m in members],
         "can_post": membership is not None,
     }
 

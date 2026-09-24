@@ -14,6 +14,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy import select
 
+from app.config import settings
 from app.db import SessionLocal
 from app.models import TransparencySnapshot, utcnow
 from app.services import antiabuse, moderation, notify, verification
@@ -44,6 +45,10 @@ async def decay_reputation() -> None:
 async def purge_id_artifacts() -> None:
     await _run("purge_id_artifacts", verification.purge_expired_artifacts)
 
+
+async def queued_local_ocr() -> None:
+    """Run the compact local model only when a human-review card is queued."""
+    await _run("queued_local_ocr", verification.run_queued_local_ocr)
 
 async def expire_provisional() -> None:
     await _run("expire_provisional", verification.expire_provisional)
@@ -144,6 +149,7 @@ def build_scheduler() -> AsyncIOScheduler:
     sched.add_job(detect_vote_rings, CronTrigger(hour=3, minute=10), id="rings")
     sched.add_job(detect_brigading, IntervalTrigger(hours=1), id="brigading", max_instances=1)
     sched.add_job(purge_id_artifacts, CronTrigger(hour=3, minute=30), id="purge_ids")
+    sched.add_job(queued_local_ocr, IntervalTrigger(seconds=settings.queued_ocr_poll_seconds), id="queued_local_ocr", max_instances=1)
     sched.add_job(decay_reputation, CronTrigger(hour=4, minute=0), id="decay")
     sched.add_job(weekly_digest, CronTrigger(day_of_week="mon", hour=8, minute=0), id="digest")
     sched.add_job(monthly_transparency, CronTrigger(day=1, hour=5, minute=0), id="transparency")

@@ -1,34 +1,36 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Where the app talks to.
-///
-/// The compile-time default suits a developer running the server on their own
-/// machine (10.0.2.2 is how an Android emulator reaches the host's localhost).
-/// A pilot deployment is built with `--dart-define=API_BASE_URL=https://…`, and
-/// the sign-in screen still lets a tester point at another server, because
-/// during a campus rollout the address changes more often than the app does.
+/// The campus production host is the safe default for every released build.
+/// Local development can still opt in with `--dart-define=API_BASE_URL=...`.
 class AppConfig {
   static const String _compiledDefault = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8011',
+    defaultValue: 'https://loyola.avlokai.com',
   );
 
   static const String _prefsKey = 'api_base_url';
-
   static String _baseUrl = _compiledDefault;
 
   static String get baseUrl => _baseUrl;
   static String get apiRoot => '$_baseUrl/api/v1';
   static String get compiledDefault => _compiledDefault;
 
+  static bool _isLegacyLocal(String value) {
+    final host = Uri.tryParse(value)?.host.toLowerCase() ?? '';
+    return host == '10.0.2.2' || host == '127.0.0.1' || host == 'localhost' || host == '::1';
+  }
+
   static Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     final stored = prefs.getString(_prefsKey);
-    if (stored != null && stored.isNotEmpty) {
+    if (stored != null && stored.isNotEmpty && !_isLegacyLocal(stored)) {
       _baseUrl = stored;
+    } else if (stored != null && _isLegacyLocal(stored)) {
+      await prefs.remove(_prefsKey);
     }
   }
 
+  /// Reserved for the staff-only configuration screen.
   static Future<void> setBaseUrl(String value) async {
     var cleaned = value.trim();
     while (cleaned.endsWith('/')) {

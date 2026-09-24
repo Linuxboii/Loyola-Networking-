@@ -1,6 +1,6 @@
 """Shared write-path for posts and comments.
 
-The HTML router and the JSON API must enforce *identical* rules — rate limits,
+The HTML router and the JSON API must enforce *identical* rules ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â rate limits,
 capability gates, the moderation screen, crisis escalation, reputation awards.
 Keeping that logic in the routers meant two copies drifting apart, so it lives
 here and both callers get the same behaviour for free. Routers keep only their
@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.deps import NEWCOMER_POSTS_PER_DAY, can
 from app.models import POST_TYPES, Comment, GroupMember, PollOption, Post, Report, User
 from app.services import antiabuse, notify
+from app.services.community_controls import mentioned_handles
 from app.services import moderation as mod
 from app.services import reputation as rep
 
@@ -46,6 +47,12 @@ def normalise_tags(raw: str | Iterable[str] | None) -> list[str]:
             seen.append(tag)
     return seen[:6]
 
+
+async def _moderator_actor(db: AsyncSession) -> User:
+    actor = (await db.execute(select(User).where(User.handle == "loyola_moderator"))).scalar_one_or_none()
+    if actor is None:
+        raise PostingError(503, "Moderator identity is initializing. Please retry shortly.")
+    return actor
 
 async def _guard_rate_and_capability(db: AsyncSession, user: User, kind: str) -> None:
     if not can(user, "unlimited_posting"):
@@ -84,6 +91,7 @@ async def create_post(
     group_id: int | None = None,
     media_items: list[dict[str, Any]] | None = None,
     poll_options: Iterable[str] | None = None,
+    as_moderator: bool = False,
 ) -> Post:
     if kind not in POST_TYPES:
         kind = "text"
@@ -110,8 +118,16 @@ async def create_post(
         if membership is None:
             raise PostingError(403, "Join the group before posting in it.")
 
+    author = user
+    if as_moderator:
+        if not user.is_moderator:
+            raise PostingError(403, "Moderator identity is not available for this account.")
+        author = await _moderator_actor(db)
+
     post = Post(
-        author_id=user.id,
+        author_id=author.id,
+        author=author,
+        moderator_actor_id=user.id if as_moderator else None,
         kind=kind,
         title=title[:200] or None,
         body=body,
@@ -133,9 +149,26 @@ async def create_post(
         await rep.award(db, user.id, "poll_created", source_type="post", source_id=post.id)
 
     await _record_verdict(db, user, verdict, "post", post.id, body)
+    await _notify_mentions(db, f"{title}\n{body}", author, f"/p/{post.id}")
     await db.flush()
     return post
 
+
+async def _notify_mentions(db: AsyncSession, text: str, actor: User, link: str) -> None:
+    handles = mentioned_handles(text)
+    if not handles:
+        return
+    recipients = list((await db.execute(select(User).where(User.handle.in_(handles)))).scalars().all())
+    for recipient in recipients:
+        await notify.push(
+            db,
+            recipient.id,
+            kind="mention",
+            title=f"{actor.full_name} mentioned you",
+            body=text[:200],
+            link=link,
+            skip_if_self=actor.id,
+        )
 
 async def _record_verdict(
     db: AsyncSession, user: User, verdict: dict[str, Any], target_type: str, target_id: int, body: str
@@ -161,7 +194,7 @@ async def _record_verdict(
 
 
 async def add_comment(
-    db: AsyncSession, user: User, post: Post, *, body: str, parent_id: int | None = None
+    db: AsyncSession, user: User, post: Post, *, body: str, parent_id: int | None = None, as_moderator: bool = False
 ) -> Comment:
     body = (body or "").strip()
     if not body:
@@ -179,10 +212,17 @@ async def add_comment(
     if parent is not None and parent.post_id != post.id:
         parent = None
 
+    author = user
+    if as_moderator:
+        if not user.is_moderator:
+            raise PostingError(403, "Moderator identity is not available for this account.")
+        author = await _moderator_actor(db)
     comment = Comment(
         post_id=post.id,
         parent_id=parent.id if parent else None,
-        author_id=user.id,
+        author_id=author.id,
+        author=author,
+        moderator_actor_id=user.id if as_moderator else None,
         body=body,
     )
     db.add(comment)
@@ -191,23 +231,38 @@ async def add_comment(
 
     await _record_verdict(db, user, verdict, "comment", comment.id, body)
 
-    await notify.push(
-        db,
-        post.author_id,
-        kind="comment",
-        title=f"{user.full_name} commented on your post",
-        body=body[:200],
-        link=f"/p/{post.id}#c{comment.id}",
-        skip_if_self=user.id,
+    actor_label = "@mod" if author.handle == "loyola_moderator" else f"@{author.handle}"
+    shared_target = post.author.handle == "loyola_moderator" or (
+        parent is not None and parent.author.handle == "loyola_moderator"
     )
-    if parent and parent.author_id not in {user.id, post.author_id}:
+    link = f"/p/{post.id}#c{comment.id}"
+    if shared_target:
+        await notify.push_moderators(
+            db,
+            kind="moderator_reply",
+            title=f"{actor_label} received a reply",
+            body=body[:200],
+            link=link,
+            skip_user_id=user.id,
+        )
+    else:
         await notify.push(
             db,
-            parent.author_id,
-            kind="reply",
-            title=f"{user.full_name} replied to you",
+            post.author_id,
+            kind="comment",
+            title=f"{actor_label} commented on your post",
             body=body[:200],
-            link=f"/p/{post.id}#c{comment.id}",
+            link=link,
+            skip_if_self=user.id,
         )
+        if parent and parent.author_id not in {user.id, post.author_id}:
+            await notify.push(
+                db,
+                parent.author_id,
+                kind="reply",
+                title=f"{actor_label} replied to you",
+                body=body[:200],
+                link=link,
+            )
     await db.flush()
     return comment

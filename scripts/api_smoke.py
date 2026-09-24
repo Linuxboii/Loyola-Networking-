@@ -216,6 +216,19 @@ def main() -> int:
     check("tags are normalised", post["tags"] == ["smoketest", "api"])
     post_id = post["id"]
 
+    # Android build 2 sent ``image`` after a successful /media upload. The
+    # server accepts this legacy payload and stores the canonical media kind.
+    legacy_image_post = call(
+        api, "POST", "/posts", token=a_token,
+        payload={
+            "kind": "image",
+            "body": "Legacy Android photo-post contract.",
+            "media": ["posts/smoke-legacy-image.jpg"],
+        },
+        expect=201,
+    )
+    check("legacy Android image posts normalize to media", legacy_image_post["kind"] == "media")
+
     feed = call(api, "GET", "/feed?mode=latest", token=b_token)
     check("post appears in the feed", any(p["id"] == post_id for p in feed["posts"]))
     foryou = call(api, "GET", "/feed?mode=foryou", token=b_token)

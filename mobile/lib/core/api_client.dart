@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -59,10 +60,26 @@ class ApiClient {
     return base.replace(queryParameters: {...base.queryParameters, ...params});
   }
 
-  Future<dynamic> get(String path, {Map<String, dynamic>? query}) =>
-      _send(() => _client.get(_uri(path, query), headers: _headers(json: false)));
+  Future<dynamic> get(String path, {Map<String, dynamic>? query}) => _send(
+      () => _client.get(_uri(path, query), headers: _headers(json: false)));
 
-  Future<dynamic> post(String path, {Object? body, Map<String, dynamic>? query}) => _send(
+  Future<List<int>> getBytes(String path) async {
+    final response = await _client
+        .get(_uri(path), headers: _headers(json: false))
+        .timeout(const Duration(seconds: 30));
+    if (response.statusCode >= 400) {
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      } catch (_) {}
+      _raise(response.statusCode, decoded);
+    }
+    return response.bodyBytes;
+  }
+
+  Future<dynamic> post(String path,
+          {Object? body, Map<String, dynamic>? query}) =>
+      _send(
         () => _client.post(
           _uri(path, query),
           headers: _headers(),
@@ -102,11 +119,11 @@ class ApiClient {
     try {
       response = await run().timeout(const Duration(seconds: 30));
     } on SocketException {
+      throw ApiException(0,
+          'Cannot reach Loyola Networking. Check your connection and try again.');
+    } on TimeoutException {
       throw ApiException(
-        0,
-        'Cannot reach ${AppConfig.baseUrl}. Check your connection, or the '
-        'server address in Settings.',
-      );
+          0, 'Connection timed out. Check your internet and try again.');
     } on HttpException {
       throw ApiException(0, 'The connection dropped mid-request. Try again.');
     } catch (error) {
@@ -125,9 +142,11 @@ class ApiClient {
       decoded = jsonDecode(utf8.decode(response.bodyBytes));
     } on FormatException {
       if (response.statusCode >= 400) {
-        throw ApiException(response.statusCode, 'The server returned an unexpected response.');
+        throw ApiException(
+            response.statusCode, 'The server returned an unexpected response.');
       }
-      throw ApiException(response.statusCode, 'Could not read the server response.');
+      throw ApiException(
+          response.statusCode, 'Could not read the server response.');
     }
 
     if (response.statusCode >= 400) {
@@ -149,7 +168,9 @@ class ApiClient {
         final first = detail.first;
         if (first is Map && first['msg'] is String) {
           final field = (first['loc'] as List?)?.last;
-          message = field == null ? '${first['msg']}' : '${first['msg']} (${field.toString()})';
+          message = field == null
+              ? '${first['msg']}'
+              : '${first['msg']} (${field.toString()})';
         }
       }
     }

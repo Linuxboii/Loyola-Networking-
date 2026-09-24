@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/api_client.dart';
 import '../core/config.dart';
+import '../core/image_cache.dart';
 import '../core/format.dart';
 import '../models/models.dart';
 import 'common.dart';
@@ -101,7 +102,10 @@ class PostCard extends StatelessWidget {
                   spacing: 6,
                   runSpacing: 6,
                   children: post.tags
-                      .map((tag) => TagChip(tag: tag, onTap: onTagTap == null ? null : () => onTagTap!(tag)))
+                      .map((tag) => TagChip(
+                          tag: tag,
+                          onTap:
+                              onTagTap == null ? null : () => onTagTap!(tag)))
                       .toList(),
                 ),
               ],
@@ -126,7 +130,8 @@ class PostCard extends StatelessWidget {
                       foregroundColor: theme.colorScheme.onSurfaceVariant,
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       minimumSize: const Size(0, 34),
-                      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      textStyle: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -173,18 +178,11 @@ class _PostImage extends StatelessWidget {
     if (absolute == null) return const SizedBox.shrink();
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: Image.network(
-        absolute,
-        headers: context.read<ApiClient>().imageHeaders,
+      child: CampusCachedImage(
+        url: absolute,
+        httpHeaders: context.read<ApiClient>().imageHeaders,
         fit: BoxFit.cover,
         width: double.infinity,
-        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-        loadingBuilder: (context, child, progress) => progress == null
-            ? child
-            : Container(
-                height: 180,
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              ),
       ),
     );
   }
@@ -280,8 +278,9 @@ class _Poll extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 14,
-                                fontWeight:
-                                    option.id == myOption ? FontWeight.w700 : FontWeight.w500,
+                                fontWeight: option.id == myOption
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
                               ),
                             ),
                           ),

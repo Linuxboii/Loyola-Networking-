@@ -31,6 +31,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
   String _kind = 'text';
   File? _image;
   bool _sending = false;
+  bool _asModerator = false;
 
   @override
   void dispose() {
@@ -88,7 +89,8 @@ class _ComposerScreenState extends State<ComposerScreen> {
         media.add(await repo.uploadImage(_image!.path));
       }
       await repo.createPost(
-        kind: _kind,
+        // The API stores photo posts under the canonical "media" kind.
+        kind: _kind == 'image' ? 'media' : _kind,
         title: _title.text.trim().isEmpty ? null : _title.text.trim(),
         body: _body.text.trim(),
         tags: _tagList,
@@ -98,6 +100,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
         pollOptions: _kind == 'poll'
             ? _pollControllers.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList()
             : const [],
+        asModerator: _asModerator,
       );
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -138,6 +141,18 @@ class _ComposerScreenState extends State<ComposerScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
         children: [
+          if (me?.roles.contains('moderator') ?? false)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(value: false, label: Text('Post as me'), icon: Icon(Icons.person_outline_rounded)),
+                  ButtonSegment(value: true, label: Text('Post as Moderator'), icon: Icon(Icons.shield_outlined)),
+                ],
+                selected: {_asModerator},
+                onSelectionChanged: (value) => setState(() => _asModerator = value.first),
+              ),
+            ),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(

@@ -169,7 +169,7 @@ class _FeedScreenState extends State<FeedScreen> {
             icon: const Icon(Icons.search_rounded),
           ),
           IconButton(
-            tooltip: 'Groups',
+            tooltip: 'Communities',
             onPressed: () => Navigator.of(context)
                 .push(MaterialPageRoute(builder: (_) => const GroupsScreen())),
             icon: const Icon(Icons.groups_outlined),

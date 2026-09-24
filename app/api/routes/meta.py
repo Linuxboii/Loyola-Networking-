@@ -8,21 +8,29 @@ from app.config import settings
 from app.deps import CAPABILITIES, CurrentUser, DbDep, Reader
 from app.models import POST_TYPES, REP_TIERS
 from app.services import feed as feed_service
+from app.services import releases as release_service
 
 router = APIRouter(tags=["api:meta"])
 
 # Bumping this tells older builds to prompt for an update rather than fail in
 # confusing ways when an endpoint changes shape.
 API_VERSION = 1
-MIN_SUPPORTED_APP_BUILD = 1
+
+# The floor itself lives with the releases, not here: raising it is part of
+# publishing the build that replaces the broken one, so the two cannot drift.
+# See app/services/releases.py and scripts/publish_release.py --min-supported.
 
 
 @router.get("/config")
 async def client_config(user: CurrentUser):
     """Unauthenticated: everything a fresh install needs before sign-in."""
+    latest = release_service.latest_release()
     return {
         "api_version": API_VERSION,
-        "min_supported_build": MIN_SUPPORTED_APP_BUILD,
+        "min_supported_build": release_service.minimum_supported_build(),
+        "latest_build": latest.build if latest else None,
+        "latest_version": latest.version if latest else None,
+        "update_endpoint": "/api/v1/updates/android/latest",
         "app_name": settings.app_name,
         "campus_name": settings.campus_name,
         "post_types": list(POST_TYPES),

@@ -10,6 +10,8 @@ import '../widgets/post_card.dart';
 import 'post_detail_screen.dart';
 import 'reputation_screen.dart';
 import 'settings_screen.dart';
+import 'admin_screen.dart';
+import 'followers_screen.dart';
 
 /// A member's profile. With no handle it shows the signed-in student's own.
 class ProfileScreen extends StatefulWidget {
@@ -25,6 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Profile? _profile;
   List<Post> _posts = const [];
   String? _error;
+  Map<String, dynamic> _community = const {};
 
   bool get _isOwnTab => widget.handle == null;
 
@@ -41,16 +44,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final repo = context.read<Repository>();
       final profile = await repo.profile(handle);
+      final community = await repo.communityProfile(handle);
       final posts = profile.activityHidden
           ? const <Post>[]
           : (await repo.profilePosts(handle)).items;
       if (!mounted) return;
       setState(() {
         _profile = profile;
+        _community = community;
         _posts = posts;
       });
     } catch (error) {
       if (mounted) setState(() => _error = '$error');
+    }
+  }
+
+  Future<void> _toggleFollow() async {
+    final handle = _profile?.card.handle;
+    if (handle == null) return;
+    try {
+      await context.read<Repository>().toggleFollow(handle);
+      await _load();
+    } catch (error) {
+      if (mounted) showError(context, error);
     }
   }
 
@@ -91,8 +107,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Save')),
         ],
       ),
     );
@@ -123,10 +143,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(hintText: 'Flutter, Public speaking, Circuit design'),
+          decoration: const InputDecoration(
+              hintText: 'Flutter, Public speaking, Circuit design'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
             child: const Text('Add'),
@@ -161,14 +184,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isOwnTab ? 'You' : profile?.card.fullName ?? 'Profile'),
+        title: Text(_isOwnTab ? 'You' : '@${profile?.card.handle ?? ''}'),
         actions: [
           if (_isOwnTab)
             IconButton(
               tooltip: 'Settings',
-              onPressed: () => Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
+              onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SettingsScreen())),
               icon: const Icon(Icons.settings_outlined),
+            ),
+          if (session.me?.isAdmin ?? false)
+            IconButton(
+              tooltip: 'Community administration',
+              onPressed: () => Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const AdminScreen())),
+              icon: const Icon(Icons.admin_panel_settings_outlined),
             ),
         ],
       ),
@@ -196,13 +226,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    profile.card.fullName,
-                                    style: theme.textTheme.titleLarge,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
                                     '@${profile.card.handle ?? ''}',
-                                    style: theme.textTheme.bodySmall,
+                                    style: theme.textTheme.titleLarge,
                                   ),
                                   const SizedBox(height: 8),
                                   Wrap(
@@ -210,6 +235,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     runSpacing: 6,
                                     children: [
                                       TierBadge(tier: profile.card.repTier),
+                                      if (_community['verified'] == true)
+                                        const Chip(
+                                            label: Text('Verified'),
+                                            visualDensity:
+                                                VisualDensity.compact),
+                                      if (_community['is_og'] == true)
+                                        const Chip(
+                                            label: Text('OG'),
+                                            visualDensity:
+                                                VisualDensity.compact),
                                       if (profile.card.course != null &&
                                           profile.card.course!.isNotEmpty)
                                         Chip(
@@ -232,6 +267,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(height: 16),
                           Text(profile.bio, style: theme.textTheme.bodyMedium),
                         ],
+                        if (!profile.isMe) ...[
+                          const SizedBox(height: 14),
+                          FilledButton.icon(
+                            onPressed: _toggleFollow,
+                            icon: Icon(_community['following'] == true
+                                ? Icons.person_remove_outlined
+                                : Icons.person_add_alt_1_outlined),
+                            label: Text(switch (_community['follow_state']) {
+                              'accepted' => 'Following',
+                              'pending' => 'Requested',
+                              _ => _community['follows_you'] == true
+                                  ? 'Follow back'
+                                  : 'Follow'
+                            }),
+                          ),
+                        ],
                         if (profile.isMe) ...[
                           const SizedBox(height: 14),
                           Row(
@@ -239,7 +290,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Expanded(
                                 child: OutlinedButton.icon(
                                   onPressed: _editBio,
-                                  icon: const Icon(Icons.edit_outlined, size: 17),
+                                  icon:
+                                      const Icon(Icons.edit_outlined, size: 17),
                                   label: const Text('Edit profile'),
                                 ),
                               ),
@@ -247,17 +299,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Expanded(
                                 child: OutlinedButton.icon(
                                   onPressed: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const ReputationScreen()),
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            const ReputationScreen()),
                                   ),
-                                  icon: const Icon(Icons.insights_rounded, size: 17),
+                                  icon: const Icon(Icons.insights_rounded,
+                                      size: 17),
                                   label: const Text('Standing'),
                                 ),
                               ),
                             ],
                           ),
+                          const SizedBox(height: 10),
+                          OutlinedButton.icon(
+                            onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) => const FollowersScreen())),
+                            icon: const Icon(Icons.people_outline),
+                            label: const Text(
+                                'Followers · Following · Follow requests'),
+                          ),
                         ],
                         const SizedBox(height: 18),
-                        _StatRow(counts: profile.counts, repTotal: profile.card.repTotal),
+                        _StatRow(
+                            counts: profile.counts,
+                            repTotal: profile.card.repTotal),
                       ],
                     ),
                   ),
@@ -313,7 +379,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   else if (_posts.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('Nothing posted yet.', style: theme.textTheme.bodySmall),
+                      child: Text('Nothing posted yet.',
+                          style: theme.textTheme.bodySmall),
                     )
                   else
                     for (final post in _posts)
@@ -324,7 +391,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           canVote: canWrite,
                           onTap: () async {
                             await Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => PostDetailScreen(postId: post.id)),
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      PostDetailScreen(postId: post.id)),
                             );
                             _load();
                           },
@@ -367,7 +436,8 @@ class _StatRow extends StatelessWidget {
                 children: [
                   Text(
                     entry.$2,
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -420,9 +490,11 @@ class _PillarBars extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(999),
                       child: LinearProgressIndicator(
-                        value: ((pillars[entry.key] ?? 0) / max).clamp(0.0, 1.0),
+                        value:
+                            ((pillars[entry.key] ?? 0) / max).clamp(0.0, 1.0),
                         minHeight: 7,
-                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                        backgroundColor:
+                            theme.colorScheme.surfaceContainerHighest,
                         color: theme.colorScheme.primary,
                       ),
                     ),
@@ -432,7 +504,8 @@ class _PillarBars extends StatelessWidget {
                     child: Text(
                       compactCount((pillars[entry.key] ?? 0).round()),
                       textAlign: TextAlign.right,
-                      style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],

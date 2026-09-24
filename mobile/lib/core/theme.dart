@@ -12,7 +12,7 @@ class AppTheme {
   static const Color _accent = Color(0xFFC9992E);
 
   static const Color _lightSurface = Color(0xFFF7F6F3);
-  static const Color _darkSurface = Color(0xFF13161C);
+  static const Color _darkSurface = Color(0xFF000000);
 
   static ThemeData light() => _build(Brightness.light);
   static ThemeData dark() => _build(Brightness.dark);
@@ -51,7 +51,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         margin: EdgeInsets.zero,
-        color: isLight ? Colors.white : const Color(0xFF1B1F27),
+        color: isLight ? Colors.white : const Color(0xFF0B0B0B),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
@@ -59,15 +59,16 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         side: BorderSide(color: scheme.outlineVariant),
-        backgroundColor: isLight ? Colors.white : const Color(0xFF1B1F27),
+        backgroundColor: isLight ? Colors.white : const Color(0xFF0B0B0B),
         labelStyle: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isLight ? Colors.white : const Color(0xFF1B1F27),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        fillColor: isLight ? Colors.white : const Color(0xFF0B0B0B),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: scheme.outlineVariant),
@@ -88,20 +89,23 @@ class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(50),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          textStyle:
+              const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           minimumSize: const Size.fromHeight(48),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           side: BorderSide(color: scheme.outlineVariant),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
         height: 64,
-        backgroundColor: isLight ? Colors.white : const Color(0xFF171B22),
+        backgroundColor: isLight ? Colors.white : const Color(0xFF000000),
         surfaceTintColor: Colors.transparent,
         indicatorColor: scheme.primary.withValues(alpha: isLight ? 0.12 : 0.28),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
@@ -129,7 +133,8 @@ class AppTheme {
     );
   }
 
-  static TextTheme _textTheme(TextTheme base, ColorScheme scheme) => base.copyWith(
+  static TextTheme _textTheme(TextTheme base, ColorScheme scheme) =>
+      base.copyWith(
         headlineSmall: base.headlineSmall?.copyWith(
           fontWeight: FontWeight.w700,
           letterSpacing: -0.6,

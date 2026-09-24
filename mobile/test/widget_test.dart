@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:loyola_networking/core/format.dart';
+import 'package:loyola_networking/core/updater.dart';
 import 'package:loyola_networking/models/models.dart';
 import 'package:loyola_networking/widgets/common.dart';
 
@@ -71,6 +72,62 @@ void main() {
       expect(at(1).canRead, isTrue);
       expect(at(1).canWrite, isFalse);
       expect(at(2).canWrite, isTrue);
+    });
+  });
+
+  group('updates', () {
+    ReleaseInfo release({int build = 5, bool mandatory = false, int floor = 1}) =>
+        ReleaseInfo.fromJson({
+          'build': build,
+          'version': '1.2.0',
+          'notes': 'Faster feed.',
+          'size': 41943040,
+          'sha256': 'abc123',
+          'download_url': '/api/v1/updates/android/download/$build/app.apk',
+          'mandatory': mandatory,
+          'min_supported_build': floor,
+        })!;
+
+    UpdateStatus status({int current = 4, ReleaseInfo? latest, int floor = 1}) => UpdateStatus(
+          currentBuild: current,
+          currentVersion: '1.1.0',
+          latest: latest,
+          minSupportedBuild: floor,
+        );
+
+    test('a release without a build or a URL is not trusted', () {
+      expect(ReleaseInfo.fromJson(null), isNull);
+      expect(ReleaseInfo.fromJson({'version': '1.2.0'}), isNull);
+      expect(ReleaseInfo.fromJson({'build': 5, 'download_url': ''}), isNull);
+    });
+
+    test('a newer build is offered, the same build is not', () {
+      expect(status(current: 4, latest: release()).updateAvailable, isTrue);
+      expect(status(current: 5, latest: release()).updateAvailable, isFalse);
+      expect(status(current: 6, latest: release()).updateAvailable, isFalse);
+      expect(status(latest: null).updateAvailable, isFalse);
+    });
+
+    test('an ordinary update can be dismissed', () {
+      expect(status(current: 4, latest: release()).blocking, isFalse);
+    });
+
+    test('a mandatory release blocks', () {
+      expect(status(current: 4, latest: release(mandatory: true)).blocking, isTrue);
+    });
+
+    test('a retired build blocks even with nothing newer published', () {
+      final retired = status(current: 4, latest: null, floor: 5);
+      expect(retired.unsupported, isTrue);
+      expect(retired.blocking, isTrue);
+    });
+
+    test('size reads as megabytes, and vanishes when unknown', () {
+      expect(release().sizeLabel, '40.0 MB');
+      expect(
+        ReleaseInfo.fromJson({'build': 5, 'download_url': '/a.apk', 'size': 0})!.sizeLabel,
+        isEmpty,
+      );
     });
   });
 

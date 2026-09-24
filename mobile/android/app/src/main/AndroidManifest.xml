@@ -2,6 +2,14 @@
     <!-- The whole app is a client for the campus server. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- In-app updates. The app is not on Play Store — a network for verified
+         students of one college has no business being publicly listable — so it
+         downloads its own APK from the campus server and asks Android to
+         install it. The system still shows its own install screen and the
+         student still has to grant "install unknown apps" to us once; this
+         permission only lets us ask. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+
     <!-- The ID-card and selfie captures. Declared optional so the app still
          installs on a device without a camera; the picker falls back to the
          gallery. -->

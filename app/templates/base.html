@@ -51,6 +51,7 @@
             <a role="menuitem" href="/me/reputation">Your reputation</a>
             {% endif %}
             <a role="menuitem" href="/settings/account">Account settings</a>
+            <a role="menuitem" href="/download">Get the Android app</a>
             {% if me.is_admin %}<a role="menuitem" href="/admin">Admin console</a>{% endif %}
             <form method="post" action="/logout" class="menu-sep">
               <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
@@ -87,6 +88,7 @@
       <a href="/vault" {% if request.url.path.startswith('/vault') %}aria-current="page"{% endif %}>Resource vault</a>
       <a href="/study-rooms" {% if request.url.path.startswith('/study-rooms') %}aria-current="page"{% endif %}>Study rooms</a>
       <a href="/lost-found" {% if request.url.path.startswith('/lost-found') %}aria-current="page"{% endif %}>Lost &amp; found</a>
+      <a href="/download" {% if request.url.path.startswith('/download') %}aria-current="page"{% endif %}>Get the app</a>
 
       {% if me.is_moderator or can(me, 'moderation_queue') %}
       <div class="nav-group">Moderation</div>

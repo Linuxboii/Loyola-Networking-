@@ -20,6 +20,7 @@ from app.models import (
 from app.security import unsign_media
 from app.services import feed as feed_service
 from app.services import media, moderation, notify
+from app.services import releases as release_service
 from app.services import reputation as rep
 from app.templating import templates
 
@@ -68,6 +69,25 @@ async def about(request: Request, user: CurrentUser):
 @router.get("/rules")
 async def rules(request: Request, user: CurrentUser):
     return templates.TemplateResponse(request, "pages/rules.html", {"title": "Community rules"})
+
+
+@router.get("/download")
+async def download_app(request: Request, user: CurrentUser):
+    """Where a student gets the Android app, and where an old build gets the new one.
+
+    Open to signed-out visitors on purpose: a phone whose build is too old to
+    sign in still has to be able to reach this page.
+    """
+    return templates.TemplateResponse(
+        request,
+        "pages/download.html",
+        {
+            "title": f"Get the {settings.app_name} app",
+            "latest": release_service.latest_release(),
+            "history": release_service.load_releases()[1:6],
+            "min_build": release_service.minimum_supported_build(),
+        },
+    )
 
 
 @router.get("/transparency")

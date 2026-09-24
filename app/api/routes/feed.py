@@ -83,7 +83,7 @@ async def list_feed(
         "page": page,
         "has_more": has_more,
         "mode": mode,
-        "posts": [post_out(p, my_vote=votes.get(p.id, 0)) for p in posts],
+        "posts": [post_out(p, my_vote=votes.get(p.id, 0), viewer_is_moderator=user.is_moderator) for p in posts],
     }
 
 
@@ -93,7 +93,8 @@ async def create_post(payload: PostIn, db: DbDep, user: Verified):
         post = await posting.create_post(
             db,
             user,
-            kind=payload.kind,
+            # Build 2 called photo posts "image"; persist the canonical media kind.
+            kind="media" if payload.kind == "image" else payload.kind,
             title=payload.title or "",
             body=payload.body,
             tags=payload.tags,
@@ -101,12 +102,13 @@ async def create_post(payload: PostIn, db: DbDep, user: Verified):
             group_id=payload.group_id,
             media_items=[{"path": m, "type": "image"} for m in payload.media],
             poll_options=payload.poll_options,
+            as_moderator=payload.as_moderator,
         )
     except posting.PostingError as exc:
         raise HTTPException(status_code=exc.status, detail=exc.detail) from exc
 
     poll, mine = await _poll_block(db, post, user.id)
-    return post_out(post, poll=poll, my_poll_option=mine)
+    return post_out(post, poll=poll, my_poll_option=mine, viewer_is_moderator=user.is_moderator)
 
 
 @router.get("/posts/{post_id}")
@@ -132,8 +134,8 @@ async def post_detail(post_id: int, db: DbDep, user: Reader):
     poll, mine = await _poll_block(db, post, user.id)
 
     return {
-        "post": post_out(post, my_vote=post_votes.get(post.id, 0), poll=poll, my_poll_option=mine),
-        "comments": [comment_out(c, my_vote=comment_votes.get(c.id, 0)) for c in comments],
+        "post": post_out(post, my_vote=post_votes.get(post.id, 0), poll=poll, my_poll_option=mine, viewer_is_moderator=user.is_moderator),
+        "comments": [comment_out(c, my_vote=comment_votes.get(c.id, 0), viewer_is_moderator=user.is_moderator) for c in comments],
     }
 
 
@@ -144,12 +146,12 @@ async def create_comment(post_id: int, payload: CommentIn, db: DbDep, user: Veri
         raise HTTPException(404, "That post is no longer available.")
     try:
         comment = await posting.add_comment(
-            db, user, post, body=payload.body, parent_id=payload.parent_id
+            db, user, post, body=payload.body, parent_id=payload.parent_id, as_moderator=payload.as_moderator
         )
     except posting.PostingError as exc:
         raise HTTPException(status_code=exc.status, detail=exc.detail) from exc
     await db.refresh(comment, ["author"])
-    return comment_out(comment)
+    return comment_out(comment, viewer_is_moderator=user.is_moderator)
 
 
 @router.post("/vote")

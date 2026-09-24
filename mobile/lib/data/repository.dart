@@ -48,7 +48,9 @@ class Repository {
       'page': page,
     }) as Map<String, dynamic>;
     return Page(
-      items: (data['posts'] as List).map((e) => Post.fromJson((e as Map).cast<String, dynamic>())).toList(),
+      items: (data['posts'] as List)
+          .map((e) => Post.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
       hasMore: data['has_more'] == true,
       page: (data['page'] as num?)?.toInt() ?? page,
     );
@@ -63,6 +65,7 @@ class Repository {
     int? groupId,
     List<String> media = const [],
     List<String> pollOptions = const [],
+    bool asModerator = false,
   }) async {
     final data = await api.post('/posts', body: {
       'kind': kind,
@@ -73,6 +76,7 @@ class Repository {
       'group_id': groupId,
       'media': media,
       'poll_options': pollOptions,
+      'as_moderator': asModerator,
     }) as Map<String, dynamic>;
     return Post.fromJson(data);
   }
@@ -86,10 +90,11 @@ class Repository {
     return (post, comments);
   }
 
-  Future<Comment> comment(int postId, String body, {int? parentId}) async {
+  Future<Comment> comment(int postId, String body,
+      {int? parentId, bool asModerator = false}) async {
     final data = await api.post(
       '/posts/$postId/comments',
-      body: {'body': body, 'parent_id': parentId},
+      body: {'body': body, 'parent_id': parentId, 'as_moderator': asModerator},
     ) as Map<String, dynamic>;
     return Comment.fromJson(data);
   }
@@ -104,7 +109,8 @@ class Repository {
   }
 
   Future<(List<PollOption>, int?)> votePoll(int postId, int optionId) async {
-    final data = await api.post('/posts/$postId/poll/$optionId') as Map<String, dynamic>;
+    final data =
+        await api.post('/posts/$postId/poll/$optionId') as Map<String, dynamic>;
     final options = ((data['poll'] as List?) ?? const [])
         .map((e) => PollOption.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
@@ -121,7 +127,8 @@ class Repository {
     return data['path'] as String;
   }
 
-  Future<void> report(String targetType, int targetId, String reason, String detail) =>
+  Future<void> report(
+          String targetType, int targetId, String reason, String detail) =>
       api.post('/reports', body: {
         'target_type': targetType,
         'target_id': targetId,
@@ -156,13 +163,16 @@ class Repository {
     final data = await api.get('/qa/questions/$id') as Map<String, dynamic>;
     return (
       Question.fromJson((data['question'] as Map).cast<String, dynamic>()),
-      (data['answers'] as List).map((e) => Answer.fromJson((e as Map).cast<String, dynamic>())).toList(),
+      (data['answers'] as List)
+          .map((e) => Answer.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
       data['can_accept'] == true,
     );
   }
 
   Future<List<Question>> duplicateHints(String title) async {
-    final data = await api.get('/qa/duplicates', query: {'title': title}) as Map<String, dynamic>;
+    final data = await api.get('/qa/duplicates', query: {'title': title})
+        as Map<String, dynamic>;
     return (data['questions'] as List)
         .map((e) => Question.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
@@ -187,8 +197,10 @@ class Repository {
     return Question.fromJson(data);
   }
 
-  Future<Answer> answer(int questionId, String body) async {
-    final data = await api.post('/qa/questions/$questionId/answers', body: {'body': body})
+  Future<Answer> answer(int questionId, String body,
+      {bool asModerator = false}) async {
+    final data = await api.post('/qa/questions/$questionId/answers',
+            body: {'body': body, 'as_moderator': asModerator})
         as Map<String, dynamic>;
     return Answer.fromJson(data);
   }
@@ -199,7 +211,8 @@ class Repository {
   // --- groups -------------------------------------------------------------
 
   Future<List<Group>> groups({String? kind}) async {
-    final data = await api.get('/groups', query: {'kind': kind}) as Map<String, dynamic>;
+    final data =
+        await api.get('/groups', query: {'kind': kind}) as Map<String, dynamic>;
     return (data['groups'] as List)
         .map((e) => Group.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
@@ -209,7 +222,9 @@ class Repository {
     final data = await api.get('/groups/$slug') as Map<String, dynamic>;
     return (
       Group.fromJson(data),
-      (data['members'] as List).map((e) => UserCard.fromJson((e as Map).cast<String, dynamic>())).toList(),
+      (data['members'] as List)
+          .map((e) => UserCard.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
     );
   }
 
@@ -218,7 +233,8 @@ class Repository {
     return data['joined'] == true;
   }
 
-  Future<Group> createGroup(String name, String description, String kind) async {
+  Future<Group> createGroup(
+      String name, String description, String kind) async {
     final data = await api.post('/groups', body: {
       'name': name,
       'description': description,
@@ -230,7 +246,8 @@ class Repository {
   // --- events -------------------------------------------------------------
 
   Future<List<CampusEvent>> events({String when = 'upcoming'}) async {
-    final data = await api.get('/events', query: {'when': when}) as Map<String, dynamic>;
+    final data =
+        await api.get('/events', query: {'when': when}) as Map<String, dynamic>;
     return (data['events'] as List)
         .map((e) => CampusEvent.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
@@ -240,16 +257,21 @@ class Repository {
     final data = await api.get('/events/$id') as Map<String, dynamic>;
     return (
       CampusEvent.fromJson(data),
-      (data['attendees'] as List).map((e) => UserCard.fromJson((e as Map).cast<String, dynamic>())).toList(),
+      (data['attendees'] as List)
+          .map((e) => UserCard.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
       data['is_host'] == true,
     );
   }
 
-  Future<void> rsvp(int eventId, {String state = 'going', String role = 'attendee'}) =>
-      api.post('/events/$eventId/rsvp', body: {'state': state}, query: {'role': role});
+  Future<void> rsvp(int eventId,
+          {String state = 'going', String role = 'attendee'}) =>
+      api.post('/events/$eventId/rsvp',
+          body: {'state': state}, query: {'role': role});
 
   Future<Map<String, dynamic>> checkin(int eventId, String code) async =>
-      (await api.post('/events/$eventId/checkin', query: {'code': code})) as Map<String, dynamic>;
+      (await api.post('/events/$eventId/checkin', query: {'code': code}))
+          as Map<String, dynamic>;
 
   Future<CampusEvent> createEvent({
     required String title,
@@ -279,7 +301,8 @@ class Repository {
   Future<List<AppNotification>> notifications() async {
     final data = await api.get('/notifications') as Map<String, dynamic>;
     return (data['notifications'] as List)
-        .map((e) => AppNotification.fromJson((e as Map).cast<String, dynamic>()))
+        .map(
+            (e) => AppNotification.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
   }
 
@@ -289,7 +312,8 @@ class Repository {
 
   // --- people -------------------------------------------------------------
 
-  Future<List<UserCard>> people({String q = '', String? skill, int? batch, String? department}) async {
+  Future<List<UserCard>> people(
+      {String q = '', String? skill, int? batch, String? department}) async {
     final data = await api.get('/people', query: {
       'q': q,
       'skill': skill,
@@ -301,14 +325,28 @@ class Repository {
         .toList();
   }
 
-  Future<Profile> profile(String handle) async =>
-      Profile.fromJson(await api.get('/people/$handle') as Map<String, dynamic>);
+  Future<Profile> profile(String handle) async => Profile.fromJson(
+      await api.get('/people/$handle') as Map<String, dynamic>);
 
+  Future<Map<String, dynamic>> communityProfile(String handle) async =>
+      (await api.get('/people/$handle/community')) as Map<String, dynamic>;
+
+  Future<bool> toggleFollow(String handle) async =>
+      ((await api.post('/people/$handle/follow'))
+          as Map<String, dynamic>)['state'] ==
+      'accepted';
+  Future<Map<String, dynamic>> follows() async =>
+      (await api.get('/me/follows')) as Map<String, dynamic>;
+  Future<void> decideFollow(int id, String action) =>
+      api.post('/me/follow-requests/$id/$action');
+  Future<void> removeFollower(int id) => api.delete('/me/followers/$id');
   Future<Page<Post>> profilePosts(String handle, {int page = 1}) async {
-    final data =
-        await api.get('/people/$handle/posts', query: {'page': page}) as Map<String, dynamic>;
+    final data = await api.get('/people/$handle/posts', query: {'page': page})
+        as Map<String, dynamic>;
     return Page(
-      items: (data['posts'] as List).map((e) => Post.fromJson((e as Map).cast<String, dynamic>())).toList(),
+      items: (data['posts'] as List)
+          .map((e) => Post.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
       hasMore: data['has_more'] == true,
       page: page,
     );
@@ -317,10 +355,12 @@ class Repository {
   Future<Map<String, dynamic>> search(String q) async =>
       (await api.get('/search', query: {'q': q})) as Map<String, dynamic>;
 
-  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> changes) async =>
+  Future<Map<String, dynamic>> updateProfile(
+          Map<String, dynamic> changes) async =>
       (await api.patch('/me', body: changes)) as Map<String, dynamic>;
 
-  Future<void> addSkill(String name) => api.post('/me/skills', query: {'name': name});
+  Future<void> addSkill(String name) =>
+      api.post('/me/skills', query: {'name': name});
 
   Future<void> removeSkill(int id) => api.delete('/me/skills/$id');
 
@@ -329,15 +369,17 @@ class Repository {
 
   // --- home chrome ---------------------------------------------------------
 
-  Future<Map<String, dynamic>> home() async => (await api.get('/home')) as Map<String, dynamic>;
+  Future<Map<String, dynamic>> home() async =>
+      (await api.get('/home')) as Map<String, dynamic>;
 
   // --- verification --------------------------------------------------------
 
   Future<VerificationStatus> verificationStatus() async =>
-      VerificationStatus.fromJson(await api.get('/verify/status') as Map<String, dynamic>);
+      VerificationStatus.fromJson(
+          await api.get('/verify/status') as Map<String, dynamic>);
 
-  Future<Map<String, dynamic>> submitCard(String filePath) async =>
-      (await api.upload('/verify/card', field: 'card', filePath: filePath, fields: {
+  Future<Map<String, dynamic>> submitCard(String filePath) async => (await api
+          .upload('/verify/card', field: 'card', filePath: filePath, fields: {
         'live_capture': 'true',
       })) as Map<String, dynamic>;
 
@@ -348,6 +390,40 @@ class Repository {
   Future<void> disputeVerification(String note) =>
       api.post('/verify/dispute', body: {'note': note});
 
+  // --- community administration -------------------------------------------
+
+  Future<List<Map<String, dynamic>>> verificationQueue() async =>
+      (((await api.get('/admin/verification-queue'))
+              as Map<String, dynamic>)['records'] as List)
+          .cast<Map<String, dynamic>>();
+
+  Future<void> decideVerification(int id, String outcome, {String note = ''}) =>
+      api.post('/admin/verification-queue/$id',
+          body: {'outcome': outcome, 'note': note});
+
+  Future<List<int>> verificationArtifact(int id, String kind) =>
+      api.getBytes('/admin/verification-queue/$id/artifact/$kind');
+
+  Future<List<Map<String, dynamic>>> managedMembers({String q = ''}) async =>
+      (((await api.get('/admin/members', query: {'q': q}))
+              as Map<String, dynamic>)['members'] as List)
+          .cast<Map<String, dynamic>>();
+
+  Future<void> setModerator(int userId, bool enabled) =>
+      api.post('/admin/members/$userId/moderator', body: {'enabled': enabled});
+
+  Future<void> setOg(int userId, bool enabled) =>
+      api.post('/admin/members/$userId/og', body: {'enabled': enabled});
+
+  Future<void> grantAdmin(int userId, List<String> actions,
+          {DateTime? expiresAt}) =>
+      api.post(
+        '/admin/members/$userId/grant',
+        body: {
+          'actions': actions,
+          'expires_at': expiresAt?.toUtc().toIso8601String()
+        },
+      );
   // --- account -------------------------------------------------------------
 
   Future<List<Map<String, dynamic>>> sessions() async =>
@@ -355,6 +431,6 @@ class Repository {
 
   Future<void> revokeSession(int id) => api.post('/auth/sessions/$id/revoke');
 
-  Future<void> changePassword(String current, String password) =>
-      api.post('/auth/password', body: {'current': current, 'password': password});
+  Future<void> changePassword(String current, String password) => api
+      .post('/auth/password', body: {'current': current, 'password': password});
 }

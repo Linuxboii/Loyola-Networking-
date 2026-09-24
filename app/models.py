@@ -4,7 +4,7 @@ Design notes that matter:
 
 * Reputation is **event sourced**. ``ReputationEvent`` rows are immutable; the
   numbers on ``User`` are a cache that ``services.reputation`` recomputes. Never
-  mutate a user's score directly — append an event.
+  mutate a user's score directly ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â append an event.
 * Votes are polymorphic (``target_type`` + ``target_id``) so one table and one
   anti-gaming code path covers posts, comments, questions and answers.
 * Verification artefacts live on disk encrypted; only paths, extracted fields and
@@ -51,7 +51,7 @@ class TimestampMixin:
 
 
 # ---------------------------------------------------------------------------
-# Constants (kept as plain strings — no native PG enums, so they stay alterable)
+# Constants (kept as plain strings ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no native PG enums, so they stay alterable)
 # ---------------------------------------------------------------------------
 
 TIER_UNVERIFIED = 0
@@ -88,7 +88,7 @@ REPORT_CATEGORIES = [
     ("other", "Other"),
 ]
 
-POST_TYPES = ("text", "image", "poll", "link", "project", "event", "notice")
+POST_TYPES = ("text", "image", "media", "poll", "link", "project", "event", "notice")
 
 
 # ---------------------------------------------------------------------------
@@ -122,11 +122,11 @@ class User(Base, TimestampMixin):
 
     tier: Mapped[int] = mapped_column(Integer, default=TIER_UNVERIFIED, index=True)
     tier1_expires_at: Mapped[Optional[dt.datetime]] = mapped_column(TS)
-    roles: Mapped[list[str]] = mapped_column(ARRAY(String(32)), default=list)  # moderator, admin, club_officer
+    roles: Mapped[list[str]] = mapped_column(ARRAY(String(32)), default=list)  # moderator, admin, super_admin, club_officer
     status: Mapped[str] = mapped_column(String(16), default="active", index=True)  # active|suspended|banned
     suspended_until: Mapped[Optional[dt.datetime]] = mapped_column(TS)
 
-    # Reputation cache — authoritative source is reputation_events.
+    # Reputation cache ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â authoritative source is reputation_events.
     rep_total: Mapped[float] = mapped_column(Float, default=0.0, index=True)
     rep_academic: Mapped[float] = mapped_column(Float, default=0.0)
     rep_build: Mapped[float] = mapped_column(Float, default=0.0)
@@ -157,7 +157,11 @@ class User(Base, TimestampMixin):
 
     @property
     def is_admin(self) -> bool:
-        return "admin" in (self.roles or [])
+        return "admin" in (self.roles or []) or self.is_super_admin
+
+    @property
+    def is_super_admin(self) -> bool:
+        return "super_admin" in (self.roles or [])
 
     @property
     def display_year(self) -> str:
@@ -268,6 +272,7 @@ class Post(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    moderator_actor_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     kind: Mapped[str] = mapped_column(String(16), default="text", index=True)
     title: Mapped[Optional[str]] = mapped_column(String(200))
     body: Mapped[str] = mapped_column(Text, default="")
@@ -323,12 +328,13 @@ class Comment(Base, TimestampMixin):
     post_id: Mapped[int] = mapped_column(ForeignKey("posts.id", ondelete="CASCADE"), index=True)
     parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey("comments.id", ondelete="CASCADE"))
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    moderator_actor_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     body: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(16), default="active", index=True)
     removed_reason: Mapped[Optional[str]] = mapped_column(String(255))
     score: Mapped[int] = mapped_column(Integer, default=0)
 
-    author: Mapped[User] = relationship(lazy="joined")
+    author: Mapped[User] = relationship(lazy="joined", foreign_keys=[author_id])
 
 
 class Question(Base, TimestampMixin):
@@ -343,7 +349,7 @@ class Question(Base, TimestampMixin):
     semester: Mapped[Optional[str]] = mapped_column(String(20), index=True)
 
     # The Anonymous Doubt Box (PRD 7.9.1): hidden from readers, never from the
-    # system — author_id is always populated so abuse stays traceable.
+    # system ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â author_id is always populated so abuse stays traceable.
     is_anonymous: Mapped[bool] = mapped_column(Boolean, default=False)
 
     accepted_answer_id: Mapped[Optional[int]] = mapped_column(BigInteger)
@@ -365,13 +371,14 @@ class Answer(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     question_id: Mapped[int] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"), index=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    moderator_actor_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     body: Mapped[str] = mapped_column(Text)
     is_accepted: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String(16), default="active", index=True)
     removed_reason: Mapped[Optional[str]] = mapped_column(String(255))
     score: Mapped[int] = mapped_column(Integer, default=0)
 
-    author: Mapped[User] = relationship(lazy="joined")
+    author: Mapped[User] = relationship(lazy="joined", foreign_keys=[author_id])
 
 
 class Vote(Base, TimestampMixin):
@@ -815,7 +822,7 @@ class ModQueueVote(Base, TimestampMixin):
 
 
 class ModerationAction(Base, TimestampMixin):
-    """Append-only. Never updated, never deleted — this is the audit trail."""
+    """Append-only. Never updated, never deleted ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â this is the audit trail."""
 
     __tablename__ = "moderation_actions"
 
@@ -878,6 +885,37 @@ class CrisisFlag(Base, TimestampMixin):
 # ---------------------------------------------------------------------------
 # Plumbing
 # ---------------------------------------------------------------------------
+
+class Follow(Base, TimestampMixin):
+    __tablename__ = "follows"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    follower_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    following_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(16), default="pending", index=True)  # pending|accepted
+
+    __table_args__ = (
+        UniqueConstraint("follower_id", "following_id", name="uq_follow_once"),
+        CheckConstraint("follower_id <> following_id", name="ck_follow_not_self"),
+    )
+
+
+class CommunityProfile(Base, TimestampMixin):
+    __tablename__ = "community_profiles"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    is_og: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+
+
+class AdminGrant(Base, TimestampMixin):
+    __tablename__ = "admin_grants"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    granted_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    actions: Mapped[list[str]] = mapped_column(ARRAY(String(32)), default=list)
+    expires_at: Mapped[Optional[dt.datetime]] = mapped_column(TS, index=True)
+    revoked_at: Mapped[Optional[dt.datetime]] = mapped_column(TS, index=True)
 
 
 class Notification(Base, TimestampMixin):

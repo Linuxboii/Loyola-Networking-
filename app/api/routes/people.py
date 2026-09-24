@@ -1,6 +1,8 @@
 """Profiles, the people directory, skills, endorsements and reputation."""
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, HTTPException, Query, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
@@ -77,7 +79,7 @@ async def directory(
     rows = await search.people(
         db, q, viewer=user, skill=skill, batch=batch, department=department, limit=limit
     )
-    return {"people": [user_card(r) for r in rows]}
+    return {"people": [user_card(r, viewer_is_moderator=user.is_moderator) for r in rows]}
 
 
 @router.get("/search")
@@ -85,8 +87,8 @@ async def search_everything(db: DbDep, user: Reader, q: str = Query(min_length=1
     found = await search.everything(db, q, user)
     return {
         "query": q,
-        "people": [user_card(p) for p in found["people"]],
-        "questions": [question_out(x) for x in found["questions"]],
+        "people": [user_card(p, viewer_is_moderator=user.is_moderator) for p in found["people"]],
+        "questions": [question_out(x, viewer_is_moderator=user.is_moderator) for x in found["questions"]],
         "resources": [
             {
                 "id": r.id,
@@ -164,6 +166,7 @@ async def profile(handle: str, db: DbDep, user: Reader):
             skills=await _skill_block(db, person.id, user.id),
             is_me=is_me,
             counts=counts,
+            viewer_is_moderator=user.is_moderator,
         ),
         "activity_hidden": hidden,
     }
@@ -184,7 +187,7 @@ async def profile_posts(handle: str, db: DbDep, user: Reader, page: int = Query(
     return {
         "page": page,
         "has_more": has_more,
-        "posts": [post_out(p, my_vote=votes.get(p.id, 0)) for p in posts],
+        "posts": [post_out(p, my_vote=votes.get(p.id, 0), viewer_is_moderator=user.is_moderator) for p in posts],
     }
 
 
@@ -210,13 +213,23 @@ async def profile_answers(handle: str, db: DbDep, user: Reader):
     ).unique().all()
     return {
         "answers": [
-            {**answer_out(a), "question": {"id": q.id, "title": q.title}} for a, q in rows
+            {**answer_out(a, viewer_is_moderator=user.is_moderator), "question": {"id": q.id, "title": q.title}} for a, q in rows
         ]
     }
 
 
 @router.patch("/me")
 async def update_profile(payload: ProfileIn, db: DbDep, user: Verified):
+    if payload.handle is not None:
+        handle = payload.handle.strip().lower().lstrip("@")
+        if not re.fullmatch(r"[a-z0-9_]{3,24}", handle):
+            raise HTTPException(422, "Use 3-24 lowercase letters, numbers, or underscores.")
+        if handle in {"admin", "administrator", "mod", "moderator", "loyola", "support", "system"}:
+            raise HTTPException(422, "That username is reserved.")
+        taken = (await db.execute(select(User.id).where(User.handle == handle, User.id != user.id))).scalar_one_or_none()
+        if taken is not None:
+            raise HTTPException(409, "That username is already taken.")
+        user.handle = handle
     if payload.bio is not None:
         user.bio = payload.bio.strip()[:1000]
     if payload.interests is not None:
@@ -242,7 +255,8 @@ async def update_profile(payload: ProfileIn, db: DbDep, user: Verified):
     if payload.endorse_policy is not None:
         user.endorse_policy = payload.endorse_policy
     await db.flush()
-    return profile_out(user, skills=await _skill_block(db, user.id, user.id), is_me=True)
+    return profile_out(user, skills=await _skill_block(db, user.id, user.id), is_me=True,
+                       viewer_is_moderator=user.is_moderator)
 
 
 @router.post("/me/skills", status_code=201)
@@ -253,7 +267,7 @@ async def add_skill(db: DbDep, user: Verified, name: str = Query(min_length=2, m
         or 0
     )
     if existing >= 12:
-        raise HTTPException(409, "Twelve skills is the limit — remove one first.")
+        raise HTTPException(409, "Twelve skills is the limit â€” remove one first.")
     skill = await ensure_skill(db, name)
     already = (
         await db.execute(

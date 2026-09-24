@@ -37,6 +37,7 @@ from app.models import (
     utcnow,
 )
 from app.ocr import read_id_card
+from app.ocr.local_model import read_queued_id_card
 from app.services import media
 from app.services import reputation as rep
 from app.services.moderation import log_action
@@ -96,6 +97,30 @@ async def run_ocr(image_bytes: bytes, template: dict[str, Any]) -> dict[str, Any
 
 # --- rate limiting ----------------------------------------------------------
 
+
+async def run_local_queue_ocr(image_bytes: bytes, template: dict[str, Any]) -> dict[str, Any]:
+    """Run the compact ONNX model outside the web process."""
+    global _inflight
+    loop = asyncio.get_running_loop()
+    async with _lock:
+        _inflight += 1
+        executor = get_executor()
+    try:
+        return await asyncio.wait_for(
+            loop.run_in_executor(executor, read_queued_id_card, image_bytes, template), timeout=120
+        )
+    except asyncio.TimeoutError:
+        return {"ok": False, "error": "queued_ocr_timeout"}
+    except Exception as exc:
+        async with _lock:
+            shutdown_executor()
+        return {"ok": False, "error": f"queued_ocr_failed: {exc}"}
+    finally:
+        async with _lock:
+            _inflight -= 1
+            if _inflight <= 0:
+                _inflight = 0
+                shutdown_executor()
 
 async def attempts_this_week(db: AsyncSession, user_id: int, device_fp: str | None) -> int:
     since = utcnow() - dt.timedelta(days=7)
@@ -485,6 +510,54 @@ async def latest_record(db: AsyncSession, user_id: int) -> VerificationRecord | 
         )
     ).scalar_one_or_none()
 
+
+async def run_queued_local_ocr(db: AsyncSession, limit: int = 1) -> int:
+    """Enrich human-review records with local OCR; never alter a decision."""
+    if not settings.queued_ocr_enabled:
+        return 0
+    rows = (
+        await db.execute(
+            select(VerificationRecord)
+            .where(
+                VerificationRecord.status == "in_review",
+                VerificationRecord.card_image_path.is_not(None),
+            )
+            .order_by(VerificationRecord.created_at.asc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    processed = 0
+    for record in rows:
+        checks = dict(record.checks or {})
+        if checks.get("queued_ocr_status") in {"complete", "failed"}:
+            continue
+        image = await media.read_verification(
+            db, record.card_image_path, record_id=record.id, artifact="card", actor_id=None,
+            reason="queued local OCR reviewer assistance",
+        )
+        if not image:
+            checks.update({"queued_ocr_status": "failed", "queued_ocr_error": "card_artifact_missing"})
+            record.checks = checks
+            processed += 1
+            continue
+        result = await run_local_queue_ocr(image, await ocr_template(db))
+        checks = dict(record.checks or {})
+        checks.update({
+            "queued_ocr_status": "complete" if result.get("ok") else "failed",
+            "queued_ocr_engine": "rapidocr-onnx",
+            "queued_ocr_ms": result.get("elapsed_ms"),
+        })
+        if result.get("ok"):
+            words = dict(record.ocr_words or {})
+            words["queued_local"] = {"lines": result.get("lines", [])[:40]}
+            record.ocr_words = words
+            checks["queued_ocr_fields"] = result.get("fields", {})
+            checks["queued_ocr_confidence"] = result.get("confidence", {})
+        else:
+            checks["queued_ocr_error"] = str(result.get("error", "unknown"))[:300]
+        record.checks = checks
+        processed += 1
+    return processed
 
 async def pending_queue(db: AsyncSession, limit: int = 50) -> list[VerificationRecord]:
     rows = (

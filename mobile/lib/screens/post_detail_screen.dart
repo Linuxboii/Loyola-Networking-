@@ -28,6 +28,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   List<Comment> _comments = const [];
   String? _error;
   bool _sending = false;
+  bool _asModerator = false;
   bool _changed = false;
   Comment? _replyingTo;
 
@@ -67,6 +68,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             widget.postId,
             body,
             parentId: _replyingTo?.id,
+            asModerator: _asModerator,
           );
       if (!mounted) return;
       setState(() {
@@ -272,7 +274,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   ],
                 ),
               ),
-        bottomNavigationBar: canWrite ? _replyBar() : null,
+        bottomNavigationBar: canWrite ? _replyBar(session.me?.roles.contains('moderator') ?? false) : null,
       ),
     );
   }
@@ -292,7 +294,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     return ordered;
   }
 
-  Widget _replyBar() {
+  Widget _replyBar(bool canUseModerator) {
     final scheme = Theme.of(context).colorScheme;
     return SafeArea(
       child: Container(
@@ -327,6 +329,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               ),
             Row(
               children: [
+                if (canUseModerator) IconButton(
+                  tooltip: _asModerator ? 'Reply as Moderator' : 'Reply as me',
+                  onPressed: () => setState(() => _asModerator = !_asModerator),
+                  icon: Icon(_asModerator ? Icons.shield_outlined : Icons.person_outline_rounded),
+                ),
                 Expanded(
                   child: TextField(
                     controller: _reply,

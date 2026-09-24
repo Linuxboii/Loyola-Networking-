@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block shell_class %}shell shell--full{% endblock %}
+
+{% block content %}
+<div class="measure" style="margin:0 auto">
+  <div class="page-head">
+    <div>
+      <h1>Get the app</h1>
+      <p class="lede">
+        The Android app is the same network as this site, in your pocket — feed, questions,
+        events and notifications, with the same sign-in.
+      </p>
+    </div>
+  </div>
+
+  {% if latest %}
+  <div class="panel">
+    <div class="panel-head">
+      <h2>{{ APP_NAME }} {{ latest.version }}</h2>
+      <span class="tag right">build {{ latest.build }}</span>
+    </div>
+    <div class="panel-body stack">
+      {% if latest.notes %}<p>{{ latest.notes }}</p>{% endif %}
+      <dl class="kv">
+        {# The manifest stores an ISO timestamp; a student only needs the day. #}
+        <dt>Published</dt><dd>{{ latest.published_at[:10] }}</dd>
+        <dt>Size</dt><dd>{{ (latest.size / 1048576)|round(1) }} MB</dd>
+        <dt>SHA-256</dt><dd class="mono">{{ latest.sha256 }}</dd>
+      </dl>
+      <div class="btn-row">
+        <a class="btn" href="{{ latest.download_path() }}">Download APK</a>
+        <span class="muted">Android 7 and later</span>
+      </div>
+    </div>
+    <div class="panel-foot">
+      Already have the app? It checks for this build itself and offers to install it —
+      you only need this page for a first install, or if an update failed.
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>Installing it</h2></div>
+    <div class="panel-body">
+      <ol class="steps">
+        <li>Download the APK above on the phone itself.</li>
+        <li>Open it. Android will ask whether this browser may install apps — allow it once.</li>
+        <li>Install, then sign in with the same account you use here.</li>
+        <li>Updates after this arrive inside the app; you will not need to repeat any of it.</li>
+      </ol>
+      <p class="hint">
+        We are not on the Play Store. This network is for verified {{ CAMPUS }} students, and a
+        public store listing would invite exactly the people it exists to keep out.
+      </p>
+    </div>
+  </div>
+
+  {% if history %}
+  <div class="panel">
+    <div class="panel-head"><h2>Earlier builds</h2></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Version</th><th>Build</th><th>Published</th><th>What changed</th></tr>
+        </thead>
+        <tbody>
+          {% for r in history %}
+          <tr>
+            <td>{{ r.version }}</td>
+            <td class="mono">{{ r.build }}</td>
+            <td>{{ r.published_at[:10] }}</td>
+            <td>{{ r.notes or '—' }}{% if r.build < min_build %} <span class="stamp">retired</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="panel">
+    <div class="panel-body empty">
+      <h3>No build published yet</h3>
+      <p class="muted">
+        The app is not out yet. When it is, this page is where it lives — and where a phone
+        that missed an update comes to catch up.
+      </p>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

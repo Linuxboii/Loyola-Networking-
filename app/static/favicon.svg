@@ -1,6 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="3" fill="#17222b"/>
-  <rect x="7" y="8" width="18" height="2.6" fill="#f3f5f4"/>
-  <rect x="7" y="14" width="13" height="2.6" fill="#f3f5f4"/>
-  <rect x="7" y="20" width="9" height="2.6" fill="#8e2a2a"/>
+<!-- The same LA monogram on the same brand blue as the Android launcher icon
+     (mobile/tool/make_launcher_icons.py) — one mark, both shells. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Loyola Networking">
+  <rect width="32" height="32" rx="7" fill="#1b3a6b"/>
+  <text x="16" y="21.5" text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="14" font-weight="700" letter-spacing="-0.5" fill="#ffffff">LA</text>
+  <rect x="10" y="24.2" width="12" height="1.8" rx="0.9" fill="#c9992e"/>
 </svg>

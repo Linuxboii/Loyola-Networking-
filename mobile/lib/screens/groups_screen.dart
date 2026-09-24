@@ -57,7 +57,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('New group'),
+          title: const Text('Create community'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -105,13 +105,13 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canCreate = context.select<Session, bool>((s) => s.me?.can('create_group') ?? false);
+    final canCreate = context.select<Session, bool>((s) => s.canWrite);
     final mine = _groups.where((g) => g.joined).toList();
     final others = _groups.where((g) => !g.joined).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Groups & clubs'),
+        title: const Text('Communities'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Padding(
@@ -136,7 +136,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
           ? FloatingActionButton.extended(
               onPressed: _create,
               icon: const Icon(Icons.add_rounded),
-              label: const Text('New group'),
+              label: const Text('Create community'),
             )
           : null,
       body: RefreshIndicator(
@@ -151,8 +151,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                           EmptyState(
                             icon: Icons.groups_outlined,
                             title: 'No groups yet',
-                            message: 'Groups unlock at Established standing — someone will start '
-                                'the first one soon.',
+                            message: 'Create the first community for your club, interest, or batch.',
                           ),
                         ],
                       )

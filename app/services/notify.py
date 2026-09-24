@@ -50,6 +50,26 @@ async def push_many(
     return count
 
 
+
+async def push_moderators(
+    db: AsyncSession, *, kind: str, title: str, body: str = "", link: str = "/", skip_user_id: int | None = None
+) -> int:
+    """Notify every active human moderator; never route shared @mod replies to its service account."""
+    users = list(
+        (
+            await db.execute(
+                select(User.id).where(User.status == "active", User.roles.contains(["moderator"]))
+            )
+        ).scalars().all()
+    )
+    return await push_many(
+        db,
+        [user_id for user_id in users if user_id != skip_user_id],
+        kind=kind,
+        title=title,
+        body=body,
+        link=link,
+    )
 async def unread_count(db: AsyncSession, user_id: int) -> int:
     return int(
         (

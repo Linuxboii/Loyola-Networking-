@@ -1,84 +1,112 @@
 /* Loyola Networking
    ------------------------------------------------------------------
-   Design intent: a calm, single-column social reader in the Threads
-   idiom — one rounded surface, hairline-separated posts, a thread line
-   running down the avatar column, and pill-shaped controls with plenty
-   of air around them.
+   One design, two shells. This stylesheet is the web half of the same
+   identity the Android app ships: Loyola's deep academic blue (#1B3A6B)
+   as the primary, a warm gold (#C9992E) reserved for authority, warm
+   off-white paper in light mode and a cool near-black in dark, cards
+   that are a flat white surface inside a hairline outline with a 16px
+   corner, 12px controls, and pill-shaped chips.
 
-   Two things survive from the older notice-board design because they
-   carry meaning rather than decoration: the oxblood stamp, reserved for
-   things that are genuinely authoritative (official notices, verified
-   answers), and the reputation tier colours.
+   Every token below has a counterpart in mobile/lib/core/theme.dart —
+   change one, change the other, or the two shells drift apart. The
+   naming keeps the old vocabulary (paper/ink/rule) so every template
+   keeps working; only the values and the shapes moved.
+
+   Gold marks the things that are genuinely authoritative (official
+   notices, verified answers) exactly as `scheme.secondary` does on a
+   post card in the app. Reputation tier colours are the same five.
 
    No web fonts. Most of this campus is on Android over mobile data, and
-   the system UI stack costs zero bytes.
+   the system UI stack costs zero bytes — the app uses the platform font
+   for the same reason.
    ------------------------------------------------------------------ */
 
 :root {
     color-scheme: light dark;
 
-    --paper: #ffffff;
+    /* Surfaces. --paper is the scaffold behind everything (app:
+       scheme.surface), --surface is a card (app: cardTheme.color). */
+    --paper: #f7f6f3;
     --surface: #ffffff;
-    --surface-sunk: #f4f4f4;
-    --hover: #fafafa;
-    --ink: #0a0a0a;
-    --ink-soft: #57606a;
-    --ink-faint: #999999;
-    --rule: #ebebeb;
-    --rule-strong: #d7d7d7;
+    --surface-sunk: #eeece7;
+    --hover: #faf9f6;
+    --ink: #14181f;
+    --ink-soft: #4b5563;
+    --ink-faint: #79838f;
+    --rule: #e2dfd8;         /* scheme.outlineVariant */
+    --rule-strong: #cdc8bd;
 
-    --stamp: #8e2a2a;
-    --stamp-soft: #fbf0ef;
-    --verified: #2f6b4f;
-    --verified-soft: #ecf4ef;
-    --warn: #8a5a12;
-    --warn-soft: #fcf4e6;
-    --like: #ec3a5b;
+    /* Brand. */
+    --primary: #1b3a6b;
+    --primary-ink: #ffffff;
+    --primary-soft: #e7ecf5;   /* primary at ~12%, the nav indicator */
+    --primary-edge: #c6d2e6;
+    --accent: #c9992e;
+    --accent-soft: #f8f0dc;
 
-    --tier-newcomer: #7c8a92;
-    --tier-contributor: #2f6b4f;
-    --tier-established: #1f5673;
-    --tier-trusted: #5d4b8c;
-    --tier-pillar: #8e2a2a;
+    --stamp: #8a6a18;          /* authority, drawn from the gold */
+    --stamp-soft: #f8f0dc;
+    --verified: #2e7d6b;
+    --verified-soft: #e6f1ee;
+    --warn: #9a5f14;
+    --warn-soft: #fbeedd;
+    --danger: #b3261e;         /* scheme.error — the downvote, alerts */
+    --danger-soft: #fbeceb;
+    --like: #1b3a6b;           /* upvote reads as primary, as in the app */
+
+    --tier-newcomer: #6b7684;
+    --tier-contributor: #6b5fa8;
+    --tier-established: #3a6fb5;
+    --tier-trusted: #2e7d6b;
+    --tier-pillar: #c9992e;
 
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 
     --gutter: 3rem;
     --rail: 3rem;          /* avatar column on a post */
-    --radius: 12px;
+    --radius: 12px;        /* controls: inputs, buttons, menu items */
     --radius-sm: 8px;
-    --radius-lg: 18px;
+    --radius-lg: 16px;     /* cards — the app's CardTheme radius */
     --pill: 999px;
     --measure: 66ch;
-    --column: 640px;       /* the reading column, Threads-width */
+    --column: 640px;       /* the reading column */
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --paper: #0e0e0e;
-        --surface: #181818;
-        --surface-sunk: #242424;
-        --hover: #1f1f1f;
-        --ink: #f2f4f6;
-        --ink-soft: #aab1b8;
-        --ink-faint: #777777;
-        --rule: #2b2b2b;
-        --rule-strong: #3a3a3a;
+        --paper: #13161c;
+        --surface: #1b1f27;
+        --surface-sunk: #242a35;
+        --hover: #21262f;
+        --ink: #e7eaf0;
+        --ink-soft: #b1bac6;
+        --ink-faint: #848d99;
+        --rule: #2c323c;
+        --rule-strong: #3c4450;
 
-        --stamp: #e06a6a;
-        --stamp-soft: #2a1a1a;
-        --verified: #6cc39a;
-        --verified-soft: #16241d;
+        --primary: #aac7ff;
+        --primary-ink: #0b2143;
+        --primary-soft: #212c3e;
+        --primary-edge: #33405a;
+        --accent: #e7c067;
+        --accent-soft: #2a2416;
+
+        --stamp: #e0bc6e;
+        --stamp-soft: #2a2416;
+        --verified: #6fc4ae;
+        --verified-soft: #16241f;
         --warn: #d5a457;
         --warn-soft: #2a2213;
-        --like: #ff4e6d;
+        --danger: #f2b8b5;
+        --danger-soft: #2b1615;
+        --like: #aac7ff;
 
-        --tier-newcomer: #9aa5ac;
-        --tier-contributor: #6cc39a;
-        --tier-established: #7ab6d8;
-        --tier-trusted: #a898d8;
-        --tier-pillar: #e06a6a;
+        --tier-newcomer: #98a2ae;
+        --tier-contributor: #a99be0;
+        --tier-established: #86b4ea;
+        --tier-trusted: #6fc4ae;
+        --tier-pillar: #e7c067;
     }
 }
 
@@ -137,7 +165,7 @@ hr {
 }
 
 :focus-visible {
-    outline: 2px solid var(--ink);
+    outline: 2px solid var(--primary);
     outline-offset: 2px;
     border-radius: var(--radius-sm);
 }
@@ -184,10 +212,10 @@ hr {
 
 /* ------------------------------------------------------------- masthead */
 
+/* The app bar: flat, surface-coloured, one hairline under it — the same
+   AppBarTheme the app uses (elevation 0, scrolledUnderElevation 0.5). */
 .masthead {
-    background: color-mix(in srgb, var(--paper) 82%, transparent);
-    backdrop-filter: saturate(180%) blur(14px);
-    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    background: var(--paper);
     border-bottom: 1px solid var(--rule);
     position: sticky;
     top: 0;
@@ -204,9 +232,10 @@ hr {
 }
 
 .wordmark {
-    font-size: 1.1rem;
-    font-weight: 800;
-    letter-spacing: -0.035em;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--primary);
     text-decoration: none;
     white-space: nowrap;
     display: flex;
@@ -226,16 +255,18 @@ hr {
     max-width: 380px;
 }
 
+/* Filled field, 12px corner, hairline outline — inputDecorationTheme. */
 .masthead-search input[type="search"] {
-    border-radius: var(--pill);
-    background: var(--surface-sunk);
-    border-color: transparent;
+    border-radius: var(--radius);
+    background: var(--surface);
+    border-color: var(--rule);
     padding: 0.45rem 0.9rem;
 }
 
 .masthead-search input[type="search"]:focus {
     background: var(--surface);
-    border-color: var(--rule-strong);
+    border-color: var(--primary);
+    box-shadow: inset 0 0 0 0.6px var(--primary);
 }
 
 .masthead-actions {
@@ -247,7 +278,7 @@ hr {
 
 .masthead-me { display: inline-flex; border-radius: 50%; text-decoration: none; cursor: pointer; }
 .masthead-me .avatar { width: 2rem; height: 2rem; font-size: 0.72rem; }
-.masthead-me:hover .avatar { background: var(--rule-strong); }
+.masthead-me:hover .avatar { box-shadow: 0 0 0 2px var(--primary-soft); }
 
 /* ------------------------------------------------------- account menu */
 
@@ -265,7 +296,7 @@ hr {
     background: var(--surface);
     border: 1px solid var(--rule);
     border-radius: var(--radius);
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.10);
     padding: 0.35rem;
     z-index: 60;
 }
@@ -332,10 +363,13 @@ hr {
 
 .nav a:hover { background: var(--surface-sunk); color: var(--ink); }
 
+/* The selected item wears the app's navigation indicator: a primary-tinted
+   pill, primary label, heavier weight. */
 .nav a[aria-current="page"] {
-    background: var(--surface-sunk);
-    color: var(--ink);
+    background: var(--primary-soft);
+    color: var(--primary);
     font-weight: 700;
+    border-radius: var(--pill);
 }
 
 .nav-group {
@@ -350,8 +384,8 @@ hr {
 
 .nav-count {
     margin-left: auto;
-    background: var(--like);
-    color: #fff;
+    background: var(--danger);
+    color: var(--paper);
     font-size: 0.7rem;
     font-weight: 700;
     min-width: 1.2rem;
@@ -409,12 +443,34 @@ hr {
 
 /* ----------------------------------------------------------- the board */
 
+/* A list reads as a stack of cards with air between them — the app's feed is
+   a ListView.separated of Cards, and this is the same thing in CSS. The board
+   itself is now only the spacing rule; every child carries the surface. */
 .board {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.board > .post,
+.board > .row,
+.board > .composer,
+.board > .comment {
     background: var(--surface);
     border: 1px solid var(--rule);
     border-radius: var(--radius-lg);
     overflow: hidden;
 }
+
+/* The row rules below drop the hairline on the last item, which used to be the
+   separator and is now the card's own edge — put it back. */
+.board > .post:last-child,
+.board > .row:last-child { border-bottom: 1px solid var(--rule); }
+
+/* The thread line tied one hairline-separated post to the next. Cards do that
+   job now, and the app draws no such line, so it only survives where it still
+   means something: a post and its replies on a detail page. */
+.board > .post > .post-rail .post-line { display: none; }
 
 /* ------------------------------------------------------------ the posts
    The feed row: an avatar column carrying the thread line, then the body.
@@ -544,9 +600,9 @@ hr {
 .act .act-ico { font-size: 1.05rem; line-height: 1; }
 .act .act-num { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
 
-.act--like[aria-pressed="true"] { color: var(--like); }
-.act--like[aria-pressed="true"] .act-num { color: var(--like); }
-.act--down[aria-pressed="true"] { color: var(--ink); }
+.act--like[aria-pressed="true"] { color: var(--primary); }
+.act--like[aria-pressed="true"] .act-num { color: var(--primary); }
+.act--down[aria-pressed="true"] { color: var(--danger); }
 .act--down { color: var(--ink-faint); }
 .act--down:hover { color: var(--ink); }
 
@@ -601,8 +657,8 @@ hr {
     width: auto;
     min-width: 8rem;
     border-radius: var(--pill);
-    background: var(--surface-sunk);
-    border-color: transparent;
+    background: var(--surface);
+    border-color: var(--rule);
     font-size: 0.86rem;
     padding: 0.35rem 0.75rem;
 }
@@ -692,9 +748,10 @@ hr {
     border-radius: var(--pill);
 }
 
+/* Up is primary, down is the error colour — the app's VoteBar exactly. */
 .vote button:hover { color: var(--ink); background: var(--surface-sunk); }
-.vote button[aria-pressed="true"] { color: var(--like); }
-.vote button.down[aria-pressed="true"] { color: var(--ink); }
+.vote button[aria-pressed="true"] { color: var(--primary); }
+.vote button.down[aria-pressed="true"] { color: var(--danger); }
 
 .vote-score {
     font-size: 0.92rem;
@@ -703,7 +760,7 @@ hr {
     color: var(--ink-soft);
 }
 
-.vote-error { font-size: 0.75rem; color: var(--stamp); }
+.vote-error { font-size: 0.75rem; color: var(--danger); }
 
 /* --------------------------------------------------------- vote, inline
    The feed's action row reuses the vote endpoint, so it keeps the same
@@ -746,17 +803,19 @@ hr {
 
 /* ----------------------------------------------------------------- tags */
 
+/* Chip: white surface inside a hairline, pill corner — chipTheme. */
 .tag {
     display: inline-block;
     font-size: 0.8rem;
     color: var(--ink-soft);
-    background: var(--surface-sunk);
+    background: var(--surface);
+    border: 1px solid var(--rule);
     border-radius: var(--pill);
     padding: 0.15rem 0.6rem;
     text-decoration: none;
 }
 
-.tag:hover { background: var(--rule-strong); color: var(--ink); }
+.tag:hover { background: var(--primary-soft); border-color: var(--primary-edge); color: var(--primary); }
 
 .kind {
     font-size: 0.72rem;
@@ -773,21 +832,17 @@ hr {
 
 /* ----------------------------------------------------------- tier badge */
 
+/* TierBadge: a pill tinted 14% in the tier's own colour, same as the app. */
 .tier {
     display: inline-flex;
     align-items: center;
-    gap: 0.28rem;
-    font-size: 0.78rem;
-    font-weight: 600;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.5;
+    padding: 0.05rem 0.5rem;
+    border-radius: var(--pill);
     color: var(--tier-newcomer);
-}
-
-.tier::before {
-    content: "";
-    width: 0.45rem;
-    height: 0.45rem;
-    border-radius: 50%;
-    background: currentColor;
+    background: color-mix(in srgb, currentColor 14%, transparent);
 }
 
 .tier-newcomer { color: var(--tier-newcomer); }
@@ -796,11 +851,12 @@ hr {
 .tier-trusted { color: var(--tier-trusted); }
 .tier-pillar { color: var(--tier-pillar); }
 
+/* Moderators read as primary here, as the verified tick does in the app. */
 .role-badge {
     font-size: 0.7rem;
     font-weight: 700;
-    color: var(--verified);
-    background: var(--verified-soft);
+    color: var(--primary);
+    background: var(--primary-soft);
     border-radius: var(--pill);
     padding: 0.05rem 0.45rem;
 }
@@ -811,8 +867,8 @@ hr {
     width: 2.6rem;
     height: 2.6rem;
     border-radius: 50%;
-    background: var(--surface-sunk);
-    color: var(--ink-soft);
+    color: var(--tier-newcomer);
+    background: color-mix(in srgb, currentColor 16%, transparent);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -848,9 +904,9 @@ textarea {
     font-size: 0.94rem;
     color: var(--ink);
     background: var(--surface);
-    border: 1px solid var(--rule-strong);
+    border: 1px solid var(--rule);
     border-radius: var(--radius);
-    padding: 0.55rem 0.8rem;
+    padding: 0.62rem 0.9rem;
 }
 
 textarea { min-height: 6rem; resize: vertical; line-height: 1.5; }
@@ -858,9 +914,15 @@ textarea { min-height: 6rem; resize: vertical; line-height: 1.5; }
 input::placeholder,
 textarea::placeholder { color: var(--ink-faint); }
 
+/* focusedBorder: 1.6px primary. A box-shadow rather than a width change so
+   the field does not shift by a pixel when it takes focus. */
 input:focus,
 select:focus,
-textarea:focus { border-color: var(--ink-soft); outline-offset: 1px; }
+textarea:focus {
+    border-color: var(--primary);
+    box-shadow: inset 0 0 0 0.6px var(--primary);
+    outline-offset: 1px;
+}
 
 .field { margin-bottom: 0.95rem; }
 
@@ -877,36 +939,41 @@ textarea:focus { border-color: var(--ink-soft); outline-offset: 1px; }
 
 .check input { margin-top: 0.22rem; flex: none; }
 
+/* FilledButton: primary, 12px corner, 600 weight — the app's
+   filledButtonTheme, minus the full-width minimum. */
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.4rem;
     font: inherit;
-    font-size: 0.89rem;
-    font-weight: 700;
+    font-size: 0.92rem;
+    font-weight: 600;
     letter-spacing: -0.01em;
-    padding: 0.5rem 1.1rem;
-    border-radius: var(--pill);
-    border: 1px solid var(--ink);
-    background: var(--ink);
-    color: var(--paper);
+    padding: 0.55rem 1.15rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--primary);
+    background: var(--primary);
+    color: var(--primary-ink);
     cursor: pointer;
     text-decoration: none;
     white-space: nowrap;
 }
 
-.btn:hover { opacity: 0.86; }
+.btn:hover { opacity: 0.88; }
 
+/* OutlinedButton: transparent over the card, outlineVariant edge. */
 .btn--ghost {
     background: var(--surface);
     color: var(--ink);
-    border-color: var(--rule-strong);
+    border-color: var(--rule);
+    font-weight: 600;
 }
 
 .btn--ghost:hover { background: var(--surface-sunk); opacity: 1; }
 
 .btn--stamp { background: var(--stamp); border-color: var(--stamp); color: #fff; }
+.btn--danger { background: var(--danger); border-color: var(--danger); color: var(--paper); }
 
 .btn--sm { font-size: 0.82rem; padding: 0.32rem 0.8rem; }
 .btn--block { width: 100%; }
@@ -925,7 +992,7 @@ textarea:focus { border-color: var(--ink-soft); outline-offset: 1px; }
     background: var(--surface);
 }
 
-.flash-error { border-color: var(--stamp); background: var(--stamp-soft); }
+.flash-error { border-color: var(--danger); background: var(--danger-soft); }
 .flash-ok { border-color: var(--verified); background: var(--verified-soft); }
 .flash-warn { border-color: var(--warn); background: var(--warn-soft); }
 
@@ -994,8 +1061,10 @@ textarea:focus { border-color: var(--ink-soft); outline-offset: 1px; }
 .tabs a:hover { color: var(--ink); }
 
 .tabs a[aria-current="page"] {
-    color: var(--ink);
+    color: var(--primary);
     background: var(--surface);
+    border: 1px solid var(--primary-edge);
+    padding-block: calc(0.4rem - 1px);
     font-weight: 700;
 }
 
@@ -1041,12 +1110,12 @@ textarea:focus { border-color: var(--ink-soft); outline-offset: 1px; }
     overflow: hidden;
 }
 
-.pillar-fill { height: 100%; background: var(--ink-soft); border-radius: var(--pill); }
+.pillar-fill { height: 100%; background: var(--primary); border-radius: var(--pill); }
 .pillar-fill--academic { background: var(--tier-established); }
 .pillar-fill--build { background: var(--tier-trusted); }
 .pillar-fill--service { background: var(--verified); }
 .pillar-fill--participation { background: var(--ink-faint); }
-.pillar-fill--conduct { background: var(--stamp); }
+.pillar-fill--conduct { background: var(--danger); }
 
 .progress-track {
     height: 5px;
@@ -1056,7 +1125,7 @@ textarea:focus { border-color: var(--ink-soft); outline-offset: 1px; }
     margin-top: 0.4rem;
 }
 
-.progress-fill { height: 100%; background: var(--ink); border-radius: var(--pill); }
+.progress-fill { height: 100%; background: var(--primary); border-radius: var(--pill); }
 
 /* --------------------------------------------------------- verification */
 
@@ -1126,7 +1195,11 @@ textarea:focus { border-color: var(--ink-soft); outline-offset: 1px; }
     color: #fff;
 }
 
-.steps li[data-state="active"]::before { border-color: var(--ink); color: var(--ink); }
+.steps li[data-state="active"]::before {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--primary);
+}
 
 .kv { display: grid; grid-template-columns: max-content 1fr; gap: 0.4rem 1rem; font-size: 0.92rem; }
 .kv dt { color: var(--ink-faint); }
@@ -1143,7 +1216,7 @@ textarea:focus { border-color: var(--ink-soft); outline-offset: 1px; }
 }
 
 .confidence--high { background: var(--verified-soft); color: var(--verified); }
-.confidence--low { background: var(--stamp-soft); color: var(--stamp); }
+.confidence--low { background: var(--danger-soft); color: var(--danger); }
 
 .review-grid { display: grid; grid-template-columns: 200px 1fr; gap: 1rem; }
 .review-grid img { width: 100%; border: 1px solid var(--rule); border-radius: var(--radius); }
@@ -1167,7 +1240,7 @@ tbody tr:hover { background: var(--hover); }
 
 .ledger-amount { font-variant-numeric: tabular-nums; font-weight: 700; }
 .ledger-amount--plus { color: var(--verified); }
-.ledger-amount--minus { color: var(--stamp); }
+.ledger-amount--minus { color: var(--danger); }
 .ledger-state { font-size: 0.74rem; color: var(--ink-faint); }
 
 /* ------------------------------------------------------------ mobile nav */
@@ -1202,35 +1275,44 @@ tbody tr:hover { background: var(--hover); }
     :root { --rail: 2.5rem; }
     .avatar { width: 2.4rem; height: 2.4rem; }
 
+    /* The app's NavigationBar: a solid card-coloured bar, labels always
+       shown, and a primary-tinted pill sliding behind the selected icon. */
     .mobile-nav {
         display: flex;
         position: fixed;
         bottom: 0;
         left: 0;
         right: 0;
-        background: color-mix(in srgb, var(--paper) 88%, transparent);
-        backdrop-filter: saturate(180%) blur(14px);
-        -webkit-backdrop-filter: saturate(180%) blur(14px);
+        background: var(--surface);
         border-top: 1px solid var(--rule);
         z-index: 50;
-        padding: 0.35rem 0 max(0.35rem, env(safe-area-inset-bottom));
+        padding: 0.4rem 0 max(0.4rem, env(safe-area-inset-bottom));
     }
 
     .mobile-nav a {
         flex: 1;
         text-align: center;
-        font-size: 0.66rem;
-        color: var(--ink-faint);
+        font-size: 0.7rem;
+        font-weight: 500;
+        color: var(--ink-soft);
         text-decoration: none;
-        padding: 0.3rem 0;
+        padding: 0.15rem 0;
         display: flex;
         flex-direction: column;
-        gap: 0.15rem;
+        gap: 0.2rem;
         align-items: center;
     }
 
-    .mobile-nav a[aria-current="page"] { color: var(--ink); font-weight: 700; }
-    .mobile-nav .ico { display: inline-flex; line-height: 1; }
+    .mobile-nav a[aria-current="page"] { color: var(--primary); font-weight: 700; }
+
+    .mobile-nav .ico {
+        display: inline-flex;
+        line-height: 1;
+        padding: 0.25rem 1.1rem;
+        border-radius: var(--pill);
+    }
+
+    .mobile-nav a[aria-current="page"] .ico { background: var(--primary-soft); }
 }
 
 /* Motion only ever confirms an action here; nothing moves on its own. */

@@ -7,7 +7,10 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
+from cryptography.fernet import Fernet
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +20,7 @@ class Settings(BaseSettings):
     # --- identity -----------------------------------------------------------
     app_name: str = "Loyola Networking"
     campus_name: str = "Loyola Academy"
+    environment: Literal["development", "test", "production"] = "development"
     base_url: str = "http://127.0.0.1:8011"
     debug: bool = False
 
@@ -39,6 +43,10 @@ class Settings(BaseSettings):
     verification_root: Path = Path("./var/verification")
     max_upload_mb: int = 12
 
+    # Published Android builds and their manifest. Written by
+    # scripts/publish_release.py, served read-only by /api/v1/updates.
+    release_root: Path = Path("./var/releases")
+
     # --- verification -------------------------------------------------------
     # Regex the OCR'd roll number must satisfy. Overridable at runtime from the
     # admin console (settings table wins over this default) so the pattern can be
@@ -50,6 +58,8 @@ class Settings(BaseSettings):
 
     roll_number_regex: str = r"^[A-Z0-9][A-Z0-9\-/]{4,19}$"
     ocr_autopass_confidence: float = 0.72
+    queued_ocr_enabled: bool = True
+    queued_ocr_poll_seconds: int = 30
     verification_attempts_per_week: int = 5
     id_image_retention_days: int = 30
     provisional_tier_hours: int = 72
@@ -64,6 +74,26 @@ class Settings(BaseSettings):
     grievance_email: str = "grievance@example.invalid"
     enable_scheduler: bool = True
 
+    @model_validator(mode="after")
+    def validate_security_settings(self) -> "Settings":
+        if self.environment != "production":
+            return self
+
+        problems: list[str] = []
+        if self.debug:
+            problems.append("LOYOLA_DEBUG must be false")
+        if not self.base_url.startswith("https://"):
+            problems.append("LOYOLA_BASE_URL must use HTTPS")
+        if self.secret_key == "dev-only-insecure-secret-change-me" or len(self.secret_key) < 32:
+            problems.append("LOYOLA_SECRET_KEY must be a unique value of at least 32 characters")
+        try:
+            Fernet(self.media_key.encode())
+        except (ValueError, TypeError):
+            problems.append("LOYOLA_MEDIA_KEY must be a valid Fernet key")
+        if problems:
+            raise ValueError("Unsafe production configuration: " + "; ".join(problems))
+        return self
+
     @property
     def max_upload_bytes(self) -> int:
         return self.max_upload_mb * 1024 * 1024
@@ -74,6 +104,7 @@ def get_settings() -> Settings:
     s = Settings()
     s.media_root.mkdir(parents=True, exist_ok=True)
     s.verification_root.mkdir(parents=True, exist_ok=True)
+    (s.release_root / "android").mkdir(parents=True, exist_ok=True)
     return s
 
 

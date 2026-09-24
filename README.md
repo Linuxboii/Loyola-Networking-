@@ -199,11 +199,12 @@ app/
   templating.py      Jinja filters and globals
   ocr/               the card reader (imageops, extract, engine)
   services/          reputation, voting, verification, moderation, feed,
-                     search, antiabuse, media, notify, jobs
+                     search, antiabuse, media, notify, jobs, releases
   routers/           one module per feature area (HTML)
   api/               the versioned JSON API the Android app is built against
     schemas.py       request bodies and the response serializers
-    routes/          auth, feed, qa, people, groups, events, notifications, verify
+    routes/          auth, feed, qa, people, groups, events, notifications,
+                     verify, updates (the Android release channel)
   templates/         server-rendered UI
   sql/indexes.sql    indexes the ORM cannot express; applied idempotently at boot
 deploy/              systemd unit, nginx vhost, deploy script
@@ -220,20 +221,13 @@ The write path for posts and comments lives in `services/posting.py` and is
 shared by both clients, so the rate limits, capability gates, moderation screen
 and crisis escalation cannot drift apart between web and mobile.
 
-## Infrastructure on the box
+## Deployment model
 
-| Piece | Where |
-|---|---|
-| App | `loyola.service` → uvicorn on `127.0.0.1:8011` |
-| Proxy | nginx vhost on `127.0.0.1:8090`, static from `/var/www/loyola/static` |
-| Tunnel | `cloudflared-loyola.service` → `loyola.avlokai.com` |
-| Database | `loyola_db` owned by `loyola_user` on the 16-ems cluster, port 5433 |
-| Media | `/var/lib/loyola/media` (public), `/var/lib/loyola/verification` (encrypted, 0700) |
-
-Isolation is mutual and verified: `loyola_user` cannot connect to `ems_crm` or
-`email_automation`, and their owners cannot connect to `loyola_db`. `PUBLIC` was
-revoked on all of them after granting each owner explicit rights first, so no
-existing EMS behaviour changed.
+The sample deployment binds the application and reverse proxy to loopback,
+keeps runtime media outside Git, and reads secrets from an environment file.
+Exact production hostnames, database topology, service inventory and operator
+access instructions are intentionally not documented in this public repository.
+See [SECURITY.md](SECURITY.md) before deploying or reporting a vulnerability.
 
 ---
 
@@ -296,6 +290,97 @@ need to buzz in anyone's pocket.
 flutter analyze && flutter test
 ```
 
+## Shipping an update
+
+There is no Play Store in this story — a network for verified students of one
+college has no business being publicly listable — so the server is the update
+channel and the app knows how to use it.
+
+**Publishing a build**
+
+```bash
+cd mobile
+# bump the +n on the `version:` line in pubspec.yaml first — that is what the
+# update channel compares
+flutter build apk --release --dart-define=API_BASE_URL=https://loyola.avlokai.com
+cd ..
+python scripts/publish_release.py \
+    --apk mobile/build/app/outputs/flutter-apk/app-release.apk \
+    --notes "Faster feed, fixes the crash when a post has no image."
+```
+
+That copies the APK to `var/releases/android/<build>/`, hashes it, and rewrites
+`var/releases/android/releases.json` atomically — a phone polling mid-publish
+sees the old manifest or the new one, never half of one. Nothing touches the
+database: a release is a file on disk, so publishing works before the first
+migration and survives a database restore.
+
+```bash
+python scripts/publish_release.py --list            # what is published
+python scripts/publish_release.py --remove 7        # roll back to the one before
+python scripts/publish_release.py --apk … --mandatory --min-supported 8
+```
+
+On the server, code and build ship together:
+
+```bash
+./deploy/deploy.sh --apk mobile/build/app/outputs/flutter-apk/app-release.apk \
+    --notes "Faster feed."
+```
+
+which pushes the code, restarts the service, and only then names the new build
+in the manifest — so no phone is ever pointed at a build the server is not yet
+running the code for. `var/` is gitignored, so published APKs live on the server
+and in `var/releases/` locally, never in the repository.
+
+**What the app does with it**
+
+`mobile/lib/core/updater.dart` asks `GET /api/v1/updates/android/latest?build=N`
+at most every six hours (and on demand from Settings → Check for updates),
+downloads the APK to its own cache directory, checks the size and SHA-256
+against what the server published, and only then hands the file to Android's
+package installer. A hash mismatch deletes the file and says so rather than
+installing it.
+
+Three levels, in order of severity:
+
+| Server says | The student sees |
+|---|---|
+| a newer build exists | a dismissible sheet; a build they decline is not offered again |
+| the release is `mandatory` | the same sheet with no way out but installing |
+| their build is below `min_supported_build` | blocked at launch, before sign-in |
+
+The floor is the *maximum* `min_supported_build` across published releases, so
+once raised it cannot be lowered by forgetting the flag on the next publish.
+
+The three update endpoints are unauthenticated on purpose: a build too old to
+sign in still has to be able to fix itself, and the APK is the same file handed
+out at a fresher stall. `REQUEST_INSTALL_PACKAGES` only lets the app *ask* —
+Android still shows its own install screen, and the student still grants
+"install unknown apps" once.
+
+`/download` on the web is the other half: a first install, or a manual recovery
+when an update failed.
+
+## One design, two shells
+
+`app/static/css/app.css` and `mobile/lib/core/theme.dart` describe the same
+interface. Every token in the stylesheet's `:root` has a counterpart in the
+Flutter theme — change one, change the other, or the two shells drift apart:
+
+| | web token | app |
+|---|---|---|
+| brand | `--primary` `#1b3a6b` | `AppTheme._seed` |
+| authority (official notices, verified answers) | `--stamp` from the gold | `scheme.secondary` `#c9992e` |
+| page | `--paper` `#f7f6f3` / `#13161c` | `scheme.surface` |
+| card | `--surface` + `--rule` hairline, `--radius-lg` 16px | `cardTheme` |
+| control | `--radius` 12px | inputs, filled and outlined buttons |
+| selected nav | `--primary-soft` pill | `navigationBarTheme.indicatorColor` |
+| reputation tiers | `--tier-*` | `tierColor()` |
+
+Neither side loads a web font: most of this campus is on Android over mobile
+data, and the platform stack costs nothing.
+
 ---
 
 ## Running it
@@ -326,6 +411,7 @@ badly, because every screen is an empty state:
 To deploy:
 
 ```bash
+export LOYOLA_HOST=<your-ssh-host-alias>
 ./deploy/deploy.sh              # push code, restart, verify
 ./deploy/deploy.sh --deps       # also reinstall dependencies
 ```
@@ -333,8 +419,8 @@ To deploy:
 Operator tasks:
 
 ```bash
-ssh emstech
-cd /root/loyola
+ssh <your-host>
+cd <your-install-directory>
 ./venv/bin/python scripts/manage.py stats
 ./venv/bin/python scripts/manage.py create-admin <handle> "<Full Name>"
 ./venv/bin/python scripts/manage.py grant <handle> moderator

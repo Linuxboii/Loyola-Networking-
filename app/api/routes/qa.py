@@ -1,4 +1,4 @@
-"""Questions and answers — the academic half of the network."""
+"""Questions and answers ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the academic half of the network."""
 from __future__ import annotations
 
 import datetime as dt
@@ -60,7 +60,7 @@ async def list_questions(
     return {
         "page": page,
         "has_more": has_more,
-        "questions": [question_out(r, my_vote=votes.get(r.id, 0)) for r in rows],
+        "questions": [question_out(r, my_vote=votes.get(r.id, 0), viewer_is_moderator=user.is_moderator) for r in rows],
     }
 
 
@@ -88,8 +88,8 @@ async def question_detail(question_id: int, db: DbDep, user: Reader):
     q_votes = await feed_service.my_votes(db, user.id, "question", [question.id])
     a_votes = await feed_service.my_votes(db, user.id, "answer", [a.id for a in answers])
     return {
-        "question": question_out(question, my_vote=q_votes.get(question.id, 0)),
-        "answers": [answer_out(a, my_vote=a_votes.get(a.id, 0)) for a in answers],
+        "question": question_out(question, my_vote=q_votes.get(question.id, 0), viewer_is_moderator=user.is_moderator),
+        "answers": [answer_out(a, my_vote=a_votes.get(a.id, 0), viewer_is_moderator=user.is_moderator) for a in answers],
         "can_accept": question.author_id == user.id or can(user, "mark_verified_answer"),
     }
 
@@ -99,7 +99,7 @@ async def ask(payload: QuestionIn, db: DbDep, user: Verified):
     title = payload.title.strip()
     body = payload.body.strip()
     if len(title) < 10:
-        raise HTTPException(422, "Give the question a real title — at least 10 characters.")
+        raise HTTPException(422, "Give the question a real title ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â at least 10 characters.")
     if len(body) < 15:
         raise HTTPException(422, "Add some detail so people can actually answer.")
 
@@ -128,14 +128,14 @@ async def ask(payload: QuestionIn, db: DbDep, user: Verified):
         await mod.raise_crisis(db, user.id, "question", question.id, body)
 
     await db.refresh(question, ["author"])
-    return question_out(question)
+    return question_out(question, viewer_is_moderator=user.is_moderator)
 
 
 @router.get("/duplicates")
 async def duplicate_hints(db: DbDep, user: Reader, title: str = Query(min_length=6)):
     """Called as the student types, so near-duplicates surface before posting."""
     rows = await search.find_duplicates(db, title, limit=5)
-    return {"questions": [question_out(r) for r in rows]}
+    return {"questions": [question_out(r, viewer_is_moderator=user.is_moderator) for r in rows]}
 
 
 @router.post("/questions/{question_id}/answers", status_code=201)
@@ -153,7 +153,14 @@ async def answer(question_id: int, payload: AnswerIn, db: DbDep, user: Verified)
     if screen["verdict"] == "block":
         raise HTTPException(400, "That answer breaks the community rules.")
 
-    row = Answer(question_id=question_id, author_id=user.id, body=body)
+    author = user
+    if payload.as_moderator:
+        if not user.is_moderator:
+            raise HTTPException(403, "Moderator identity is not available for this account.")
+        author = await posting._moderator_actor(db)
+    row = Answer(
+        question_id=question_id, author_id=author.id, moderator_actor_id=user.id if payload.as_moderator else None, body=body
+    )
     db.add(row)
     question.answer_count = (question.answer_count or 0) + 1
     await db.flush()
@@ -166,13 +173,13 @@ async def answer(question_id: int, payload: AnswerIn, db: DbDep, user: Verified)
         db,
         question.author_id,
         kind="answer",
-        title=f"{user.full_name} answered your question",
+        title=("@mod" if payload.as_moderator else f"@{user.handle}") + " answered your question",
         body=question.title[:180],
         link=f"/qa/{question_id}#a{row.id}",
         skip_if_self=user.id,
     )
     await db.refresh(row, ["author"])
-    return answer_out(row)
+    return answer_out(row, viewer_is_moderator=user.is_moderator)
 
 
 @router.post("/questions/{question_id}/accept/{answer_id}")

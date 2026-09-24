@@ -12,6 +12,7 @@ from fastapi import APIRouter
 
 from app.api.routes import (
     auth,
+    community,
     events,
     feed,
     groups,
@@ -19,12 +20,13 @@ from app.api.routes import (
     notifications,
     people,
     qa,
+    updates,
     verify,
 )
 
 api_router = APIRouter(prefix="/api/v1")
 
-for module in (auth, meta, feed, qa, people, groups, events, notifications, verify):
+for module in (auth, meta, feed, qa, people, community, groups, events, notifications, verify, updates):
     api_router.include_router(module.router)
 
 __all__ = ["api_router"]

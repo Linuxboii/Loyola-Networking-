@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/models.dart';
 import 'api_client.dart';
 import 'config.dart';
+import 'image_cache.dart';
 
 enum AuthStage {
   /// Reading the stored token and asking the server who we are.
@@ -95,7 +98,8 @@ class Session extends ChangeNotifier {
   Future<void> refreshUnread() async {
     if (_me == null || !_me!.canRead) return;
     try {
-      final data = await api.get('/notifications/unread-count') as Map<String, dynamic>;
+      final data =
+          await api.get('/notifications/unread-count') as Map<String, dynamic>;
       final unread = (data['unread'] as num?)?.toInt() ?? 0;
       if (unread != _me!.unread) {
         await refreshMe();
@@ -105,12 +109,18 @@ class Session extends ChangeNotifier {
     }
   }
 
-  Future<void> login(String identifier, String password) =>
-      _authenticate('/auth/login', {'identifier': identifier, 'password': password});
+  Future<void> login(String identifier, String password) => _authenticate(
+      '/auth/login', {'identifier': identifier, 'password': password});
 
-  Future<void> signup(String handle, String fullName, String password) => _authenticate(
+  Future<void> signup(String handle, String fullName, String password) =>
+      _authenticate(
         '/auth/signup',
-        {'handle': handle, 'full_name': fullName, 'password': password, 'consent': true},
+        {
+          'handle': handle,
+          'full_name': fullName,
+          'password': password,
+          'consent': true
+        },
       );
 
   Future<void> _authenticate(String path, Map<String, dynamic> body) async {
@@ -136,6 +146,7 @@ class Session extends ChangeNotifier {
       // Revoking server-side is best effort; the local token goes either way.
     }
     await _clearToken();
+    await CampusImageCache.clear();
     _me = null;
     _stage = AuthStage.signedOut;
     notifyListeners();
@@ -144,6 +155,7 @@ class Session extends ChangeNotifier {
   void _onTokenRejected() {
     if (_stage == AuthStage.signedOut) return;
     _clearToken();
+    unawaited(CampusImageCache.clear());
     _me = null;
     _stage = AuthStage.signedOut;
     notifyListeners();

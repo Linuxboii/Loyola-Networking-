@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../core/api_client.dart';
-import '../core/config.dart';
 import '../core/session.dart';
 import 'splash_screen.dart';
 
@@ -129,21 +128,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             )
                           : Text(_registering ? 'Create account' : 'Sign in'),
                     ),
-                    const SizedBox(height: 18),
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: _editServer,
-                        icon: const Icon(Icons.dns_outlined, size: 16),
-                        label: Text(
-                          Uri.tryParse(AppConfig.baseUrl)?.host ?? AppConfig.baseUrl,
-                          style: const TextStyle(fontSize: 12.5),
-                        ),
-                        style: TextButton.styleFrom(
-                          foregroundColor: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
                 ),
               ),
             ),
@@ -243,43 +228,6 @@ class _AuthScreenState extends State<AuthScreen> {
           return null;
         },
       );
-
-  Future<void> _editServer() async {
-    final controller = TextEditingController(text: AppConfig.baseUrl);
-    final value = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Server address'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: controller,
-              autofocus: true,
-              keyboardType: TextInputType.url,
-              decoration: const InputDecoration(hintText: 'https://campus.example.edu'),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Only change this if the college gave you a different address.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-    if (value != null && value.trim().isNotEmpty) {
-      await AppConfig.setBaseUrl(value);
-      if (mounted) setState(() {});
-    }
-  }
 }
 
 class _ErrorBanner extends StatelessWidget {

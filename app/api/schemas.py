@@ -39,7 +39,8 @@ class PasswordChangeIn(BaseModel):
 
 
 class PostIn(BaseModel):
-    kind: str = Field(default="text", pattern="^(text|link|poll|media|question)$")
+    # ``image`` was emitted by Android build 2. Keep accepting it while deployed phones update.
+    kind: str = Field(default="text", pattern="^(text|link|poll|media|image|question)$")
     title: Optional[str] = Field(default=None, max_length=200)
     body: str = Field(default="", max_length=8000)
     tags: list[str] = Field(default_factory=list, max_length=6)
@@ -47,11 +48,13 @@ class PostIn(BaseModel):
     group_id: Optional[int] = None
     media: list[str] = Field(default_factory=list, max_length=4)
     poll_options: list[str] = Field(default_factory=list, max_length=6)
+    as_moderator: bool = False
 
 
 class CommentIn(BaseModel):
     body: str = Field(min_length=1, max_length=4000)
     parent_id: Optional[int] = None
+    as_moderator: bool = False
 
 
 class VoteIn(BaseModel):
@@ -71,9 +74,11 @@ class QuestionIn(BaseModel):
 
 class AnswerIn(BaseModel):
     body: str = Field(min_length=10, max_length=8000)
+    as_moderator: bool = False
 
 
 class ProfileIn(BaseModel):
+    handle: Optional[str] = Field(default=None, min_length=3, max_length=24)
     bio: Optional[str] = Field(default=None, max_length=1000)
     interests: Optional[list[str]] = Field(default=None, max_length=12)
     links: Optional[dict[str, str]] = None
@@ -115,9 +120,11 @@ class ReportIn(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def media_url(rel_path: str | None) -> str | None:
+def media_url(rel_path: str | dict[str, Any] | None) -> str | None:
     """A short-lived signed URL, so media stays behind the verification wall."""
-    if not rel_path:
+    if isinstance(rel_path, dict):
+        rel_path = rel_path.get("path")
+    if not isinstance(rel_path, str) or not rel_path:
         return None
     return f"/media/{sign_media(rel_path)}"
 
@@ -126,8 +133,21 @@ def iso(value: dt.datetime | dt.date | None) -> str | None:
     return value.isoformat() if value is not None else None
 
 
-def user_card(user: User | None, *, anonymous: bool = False) -> dict[str, Any]:
+def user_card(user: User | None, *, anonymous: bool = False, viewer_is_moderator: bool = False) -> dict[str, Any]:
     """The compact author block embedded in every piece of content."""
+    if user is not None and user.handle == "loyola_moderator":
+        return {
+            "id": None,
+            "handle": "mod",
+            "full_name": "@mod",
+            "photo_url": None,
+            "rep_tier": None,
+            "rep_total": 0,
+            "batch_year": None,
+            "department": None,
+            "is_moderator": True,
+            "anonymous": True,
+        }
     if anonymous or user is None:
         return {
             "id": None,
@@ -144,7 +164,9 @@ def user_card(user: User | None, *, anonymous: bool = False) -> dict[str, Any]:
     return {
         "id": user.id,
         "handle": user.handle,
-        "full_name": user.full_name,
+        # Social surfaces are username-only for every role. Verification names
+        # are exposed solely by the separately authorized admin endpoints.
+        "full_name": f"@{user.handle}",
         "photo_url": media_url(user.photo_path),
         "rep_tier": user.rep_tier,
         "rep_total": round(user.rep_total or 0.0, 1),
@@ -158,7 +180,7 @@ def user_card(user: User | None, *, anonymous: bool = False) -> dict[str, Any]:
 
 def me_out(user: User, *, unread: int = 0, capabilities: dict[str, bool] | None = None) -> dict[str, Any]:
     return {
-        **user_card(user),
+        **user_card(user, viewer_is_moderator=True),
         "roll_number": user.roll_number,
         "bio": user.bio or "",
         "interests": list(user.interests or []),
@@ -183,7 +205,7 @@ def me_out(user: User, *, unread: int = 0, capabilities: dict[str, bool] | None 
 
 
 def post_out(post, *, my_vote: int = 0, poll: list[dict[str, Any]] | None = None,
-             my_poll_option: int | None = None) -> dict[str, Any]:
+             my_poll_option: int | None = None, viewer_is_moderator: bool = False) -> dict[str, Any]:
     return {
         "id": post.id,
         "kind": post.kind,
@@ -191,21 +213,21 @@ def post_out(post, *, my_vote: int = 0, poll: list[dict[str, Any]] | None = None
         "body": post.body or "",
         "tags": list(post.tags or []),
         "link_url": post.link_url,
-        "media": [media_url(m) if isinstance(m, str) else m for m in (post.media or [])],
+        "media": [url for item in (post.media or []) if (url := media_url(item))],
         "group_id": post.group_id,
         "is_official": post.is_official,
         "score": post.score,
         "comment_count": post.comment_count,
         "created_at": iso(post.created_at),
         "edited_at": iso(post.edited_at),
-        "author": user_card(post.author),
+        "author": user_card(post.author, viewer_is_moderator=viewer_is_moderator),
         "my_vote": my_vote,
         "poll": poll,
         "my_poll_option": my_poll_option,
     }
 
 
-def comment_out(comment, *, my_vote: int = 0) -> dict[str, Any]:
+def comment_out(comment, *, my_vote: int = 0, viewer_is_moderator: bool = False) -> dict[str, Any]:
     return {
         "id": comment.id,
         "post_id": comment.post_id,
@@ -213,12 +235,12 @@ def comment_out(comment, *, my_vote: int = 0) -> dict[str, Any]:
         "body": comment.body,
         "score": comment.score,
         "created_at": iso(comment.created_at),
-        "author": user_card(comment.author),
+        "author": user_card(comment.author, viewer_is_moderator=viewer_is_moderator),
         "my_vote": my_vote,
     }
 
 
-def question_out(question, *, my_vote: int = 0) -> dict[str, Any]:
+def question_out(question, *, my_vote: int = 0, viewer_is_moderator: bool = False) -> dict[str, Any]:
     return {
         "id": question.id,
         "title": question.title,
@@ -232,12 +254,12 @@ def question_out(question, *, my_vote: int = 0) -> dict[str, Any]:
         "answer_count": question.answer_count,
         "view_count": question.view_count,
         "created_at": iso(question.created_at),
-        "author": user_card(question.author, anonymous=question.is_anonymous),
+        "author": user_card(question.author, anonymous=question.is_anonymous, viewer_is_moderator=viewer_is_moderator),
         "my_vote": my_vote,
     }
 
 
-def answer_out(answer, *, my_vote: int = 0) -> dict[str, Any]:
+def answer_out(answer, *, my_vote: int = 0, viewer_is_moderator: bool = False) -> dict[str, Any]:
     return {
         "id": answer.id,
         "question_id": answer.question_id,
@@ -245,7 +267,7 @@ def answer_out(answer, *, my_vote: int = 0) -> dict[str, Any]:
         "is_accepted": answer.is_accepted,
         "score": answer.score,
         "created_at": iso(answer.created_at),
-        "author": user_card(answer.author),
+        "author": user_card(answer.author, viewer_is_moderator=viewer_is_moderator),
         "my_vote": my_vote,
     }
 
@@ -297,9 +319,10 @@ def notification_out(note) -> dict[str, Any]:
 
 
 def profile_out(user: User, *, skills: list[dict[str, Any]] | None = None,
-                is_me: bool = False, counts: dict[str, int] | None = None) -> dict[str, Any]:
+                is_me: bool = False, counts: dict[str, int] | None = None,
+                viewer_is_moderator: bool = False) -> dict[str, Any]:
     return {
-        **user_card(user),
+        **user_card(user, viewer_is_moderator=viewer_is_moderator),
         "bio": user.bio or "",
         "interests": list(user.interests or []),
         "links": dict(user.links or {}),

@@ -1,7 +1,10 @@
 name: loyola_networking
-description: The Loyola Academy campus network — verified students only.
+description: The Loyola Academy campus network â€” verified students only.
 publish_to: "none"
-version: 1.0.0+1
+# The build number after the `+` is what the update channel compares. Bump it
+# on every build you intend to ship, then publish with:
+#   python scripts/publish_release.py --apk build/app/outputs/flutter-apk/app-release.apk --notes "â€¦"
+version: 1.1.6+8
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
@@ -15,7 +18,16 @@ dependencies:
   shared_preferences: ^2.3.2
   flutter_secure_storage: ^9.2.2
   image_picker: ^1.1.2
+  cached_network_image: ^3.4.1
+  flutter_cache_manager: ^3.4.1
   intl: ^0.19.0
+  # In-app updates: read our own build number, stream the APK to a file,
+  # check its hash, hand it to Android's package installer.
+  package_info_plus: ^8.0.2
+  path_provider: ^2.1.4
+  crypto: ^3.0.5
+  convert: ^3.1.1
+  open_filex: ^4.5.0
 
 dev_dependencies:
   flutter_test:

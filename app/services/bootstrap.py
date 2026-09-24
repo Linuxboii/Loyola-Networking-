@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import AppSetting, Skill
+from app.models import AppSetting, CommunityProfile, Skill, User
 from app.services.settings_store import set_setting
 
 SEED_SKILLS = [
@@ -78,6 +78,60 @@ async def ensure_seed_settings(db: AsyncSession) -> None:
             },
         )
 
+    await ensure_community_bootstrap(db)
+    await ensure_moderator_actor(db)
+
+
+async def ensure_community_bootstrap(db: AsyncSession) -> None:
+    """Apply the launch cohort grants once, without changing future signups."""
+    if await db.get(AppSetting, "community_bootstrap_v1") is not None:
+        return
+
+    users = list((await db.execute(select(User))).scalars().all())
+    for user in users:
+        roles = list(user.roles or [])
+        if "moderator" not in roles:
+            roles.append("moderator")
+        if user.full_name.strip().casefold() == "sushanth kasturi":
+            for role in ("admin", "super_admin"):
+                if role not in roles:
+                    roles.append(role)
+        user.roles = roles
+        profile = await db.get(CommunityProfile, user.id)
+        if profile is None:
+            db.add(CommunityProfile(user_id=user.id, is_og=True))
+        else:
+            profile.is_og = True
+
+    actor = (await db.execute(select(User).where(User.handle == "loyola_moderator"))).scalar_one_or_none()
+    if actor is None:
+        from app.security import hash_password
+        import secrets
+
+        db.add(User(
+            handle="loyola_moderator",
+            full_name="Loyola Moderator",
+            password_hash=hash_password(secrets.token_urlsafe(32)),
+            tier=3,
+            roles=["system_actor"],
+        ))
+    await set_setting(db, "community_bootstrap_v1", {"completed": True, "user_count": len(users)})
+
+async def ensure_moderator_actor(db: AsyncSession) -> None:
+    """Always ensure the anonymous actor exists, even after an older bootstrap."""
+    actor = (await db.execute(select(User).where(User.handle == "loyola_moderator"))).scalar_one_or_none()
+    if actor is not None:
+        return
+    from app.security import hash_password
+    import secrets
+
+    db.add(User(
+        handle="loyola_moderator",
+        full_name="Loyola Moderator",
+        password_hash=hash_password(secrets.token_urlsafe(32)),
+        tier=3,
+        roles=["system_actor"],
+    ))
 
 async def ensure_skill(db: AsyncSession, name: str) -> Skill:
     slug = slugify(name)

@@ -27,6 +27,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
   bool _canAccept = false;
   String? _error;
   bool _sending = false;
+  bool _asModerator = false;
 
   @override
   void initState() {
@@ -65,7 +66,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     }
     setState(() => _sending = true);
     try {
-      await context.read<Repository>().answer(widget.questionId, body);
+      await context.read<Repository>().answer(widget.questionId, body, asModerator: _asModerator);
       _answer.clear();
       _answerFocus.unfocus();
       await _load();
@@ -90,6 +91,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final canWrite = context.select<Session, bool>((s) => s.canWrite);
+    final isModerator = context.select<Session, bool>((s) => s.me?.card.isModerator ?? false);
     final question = _question;
 
     return Scaffold(
@@ -195,6 +197,12 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                 padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
                 child: Row(
                   children: [
+                    if (isModerator)
+                      IconButton(
+                        tooltip: _asModerator ? 'Answer as @mod' : 'Answer as me',
+                        onPressed: _sending ? null : () => setState(() => _asModerator = !_asModerator),
+                        icon: Icon(_asModerator ? Icons.shield_rounded : Icons.person_outline_rounded),
+                      ),
                     Expanded(
                       child: TextField(
                         controller: _answer,
@@ -203,7 +211,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                         maxLines: 5,
                         textCapitalization: TextCapitalization.sentences,
                         decoration: const InputDecoration(
-                          hintText: 'Write an answer…',
+                          hintText: 'Write an answerÃ¢â‚¬Â¦',
                           contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         ),
                       ),

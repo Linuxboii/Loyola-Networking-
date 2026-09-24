@@ -117,3 +117,22 @@ CREATE INDEX IF NOT EXISTS ix_ratelimit_window
 CREATE UNIQUE INDEX IF NOT EXISTS uq_users_roll_number
     ON users (roll_number) WHERE roll_number IS NOT NULL
 ;--
+
+-- Private actor attribution for shared @mod content.
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS moderator_actor_id BIGINT REFERENCES users(id) ON DELETE SET NULL
+;--
+ALTER TABLE comments ADD COLUMN IF NOT EXISTS moderator_actor_id BIGINT REFERENCES users(id) ON DELETE SET NULL
+;--
+ALTER TABLE answers ADD COLUMN IF NOT EXISTS moderator_actor_id BIGINT REFERENCES users(id) ON DELETE SET NULL
+;--
+CREATE INDEX IF NOT EXISTS ix_posts_moderator_actor ON posts (moderator_actor_id) WHERE moderator_actor_id IS NOT NULL
+;--
+CREATE INDEX IF NOT EXISTS ix_comments_moderator_actor ON comments (moderator_actor_id) WHERE moderator_actor_id IS NOT NULL
+;--
+CREATE INDEX IF NOT EXISTS ix_answers_moderator_actor ON answers (moderator_actor_id) WHERE moderator_actor_id IS NOT NULL
+;--
+
+ALTER TABLE follows ADD COLUMN IF NOT EXISTS status VARCHAR(16) NOT NULL DEFAULT 'accepted'
+;--
+CREATE INDEX IF NOT EXISTS ix_follows_status ON follows (status)
+;--

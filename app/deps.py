@@ -39,7 +39,7 @@ CAPABILITIES: dict[str, str] = {
     "post_project": "Contributor",
     "unlimited_posting": "Contributor",
     "appear_in_skill_search": "Contributor",
-    "create_group": "Established",
+    "create_group": "Newcomer",
     "host_event": "Established",
     "host_study_room": "Established",
     "mentor": "Established",

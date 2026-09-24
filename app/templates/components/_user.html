@@ -1,13 +1,21 @@
+{# The initials fallback is tinted with the member's tier colour, the same way
+   the app's Avatar widget tints its CircleAvatar — so a Pillar reads gold on
+   both shells. #}
 {% macro avatar(user, size='') -%}
+{%- set tint = tier_colour(user.rep_tier) -%}
 {%- if user.photo_path -%}
 <img class="avatar {{ size }}" src="{{ user.photo_path|media_url }}" alt="">
 {%- else -%}
-<span class="avatar {{ size }}" aria-hidden="true">{{ user.full_name|initials }}</span>
+<span class="avatar {{ size }} {{ tint }}" aria-hidden="true">{{ user.full_name|initials }}</span>
 {%- endif -%}
 {%- endmacro %}
 
+{# Newcomer is the absence of standing, not an achievement, so it shows as
+   nothing at all — the app's TierBadge makes the same call. #}
 {% macro tier(user) -%}
+{%- if user.rep_tier and user.rep_tier != 'Newcomer' -%}
 <span class="tier {{ tier_colour(user.rep_tier) }}" title="Earned by contributing, not by popularity">{{ user.rep_tier }}</span>
+{%- endif -%}
 {%- endmacro %}
 
 {% macro chip(user, show_tier=true) -%}

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/api_client.dart';
 import '../core/config.dart';
 import '../core/format.dart';
+import '../core/image_cache.dart';
 import '../core/theme.dart';
 import '../models/models.dart';
 
@@ -28,13 +29,18 @@ class Avatar extends StatelessWidget {
       backgroundColor: background,
       foregroundImage: url == null
           ? null
-          : NetworkImage(url, headers: context.read<ApiClient>().imageHeaders),
+          : CampusCachedImageProvider(
+              url,
+              httpHeaders: context.read<ApiClient>().imageHeaders,
+            ),
       child: Text(
         user.anonymous ? '?' : user.initials,
         style: TextStyle(
           fontSize: radius * 0.8,
           fontWeight: FontWeight.w700,
-          color: user.anonymous ? scheme.onSurfaceVariant : tierColor(user.repTier, scheme),
+          color: user.anonymous
+              ? scheme.onSurfaceVariant
+              : tierColor(user.repTier, scheme),
         ),
       ),
     );
@@ -50,7 +56,9 @@ class TierBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (tier == null || tier!.isEmpty || tier == 'Newcomer') return const SizedBox.shrink();
+    if (tier == null || tier!.isEmpty || tier == 'Newcomer') {
+      return const SizedBox.shrink();
+    }
     final color = tierColor(tier, Theme.of(context).colorScheme);
     return Container(
       padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 8, vertical: 2),
@@ -60,7 +68,10 @@ class TierBadge extends StatelessWidget {
       ),
       child: Text(
         tier!,
-        style: TextStyle(fontSize: compact ? 10 : 11, fontWeight: FontWeight.w700, color: color),
+        style: TextStyle(
+            fontSize: compact ? 10 : 11,
+            fontWeight: FontWeight.w700,
+            color: color),
       ),
     );
   }
@@ -105,12 +116,14 @@ class AuthorLine extends StatelessWidget {
                         user.fullName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                     ),
                     if (user.isModerator) ...[
                       const SizedBox(width: 4),
-                      Icon(Icons.verified_rounded, size: 14, color: theme.colorScheme.primary),
+                      Icon(Icons.verified_rounded,
+                          size: 14, color: theme.colorScheme.primary),
                     ],
                     const SizedBox(width: 6),
                     TierBadge(tier: user.repTier, compact: true),
@@ -139,7 +152,8 @@ class AuthorLine extends StatelessWidget {
 }
 
 class TagChip extends StatelessWidget {
-  const TagChip({super.key, required this.tag, this.onTap, this.selected = false});
+  const TagChip(
+      {super.key, required this.tag, this.onTap, this.selected = false});
 
   final String tag;
   final VoidCallback? onTap;
@@ -154,9 +168,13 @@ class TagChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: selected ? scheme.primary.withValues(alpha: 0.14) : scheme.surfaceContainerHighest,
+          color: selected
+              ? scheme.primary.withValues(alpha: 0.14)
+              : scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(999),
-          border: selected ? Border.all(color: scheme.primary.withValues(alpha: 0.5)) : null,
+          border: selected
+              ? Border.all(color: scheme.primary.withValues(alpha: 0.5))
+              : null,
         ),
         child: Text(
           '#$tag',
@@ -194,14 +212,20 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 44, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+            Icon(icon,
+                size: 44,
+                color:
+                    theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
             const SizedBox(height: 16),
-            Text(title, textAlign: TextAlign.center, style: theme.textTheme.titleMedium),
+            Text(title,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             if (action != null) ...[const SizedBox(height: 20), action!],
           ],
@@ -241,21 +265,24 @@ class SkeletonList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06);
+    final color =
+        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06);
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: count,
       separatorBuilder: (_, __) => const SizedBox(height: 14),
       itemBuilder: (_, __) => Container(
         height: 132,
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16)),
+        decoration: BoxDecoration(
+            color: color, borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
 }
 
 class SectionHeader extends StatelessWidget {
-  const SectionHeader({super.key, required this.title, this.action, this.onAction});
+  const SectionHeader(
+      {super.key, required this.title, this.action, this.onAction});
 
   final String title;
   final String? action;
@@ -289,7 +316,9 @@ class SectionHeader extends StatelessWidget {
 /// Uniform error reporting. Everything a person sees about a failure comes
 /// through here, so the wording stays consistent.
 void showError(BuildContext context, Object error) {
-  final message = error is ApiException ? error.message : 'Something went wrong. Try again.';
+  final message = error is ApiException
+      ? error.message
+      : 'Something went wrong. Try again.';
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(

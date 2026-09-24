@@ -57,7 +57,7 @@
         <form method="post" action="/admin/people/{{ u.id }}/reset-password" style="margin-top:.3rem"
               data-confirm="Only do this after checking their ID card in person.">
           <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
-          <input name="password" type="text" required minlength="10" placeholder="New password">
+          <input name="password" type="password" required minlength="10" autocomplete="new-password" placeholder="New password">
           <button type="submit" class="btn btn--ghost btn--sm" style="margin-top:.3rem">Set</button>
         </form>
       </details>

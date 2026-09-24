@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import base64
 import datetime as dt
+import functools
 import hashlib
 import hmac
 import os
 import re
 import secrets
+import time
 from pathlib import Path
 
 from argon2 import PasswordHasher
@@ -98,9 +100,21 @@ def device_fingerprint(user_agent: str | None, client_hint: str | None, ip: str 
 
 # --- signed media URLs ------------------------------------------------------
 
+# Keep one URL stable long enough for clients and HTTP caches to reuse it. The
+# route accepts tokens for 24 hours, so rotating every 12 hours leaves a full
+# overlap window without turning media URLs into permanent public identifiers.
+MEDIA_URL_ROTATION_SECONDS = 12 * 60 * 60
+
+
+@functools.lru_cache(maxsize=4096)
+def _sign_media_for_window(path: str, window: int) -> str:
+    del window  # It is intentionally part of the cache key only.
+    return _serializer.dumps(path)
+
 
 def sign_media(path: str) -> str:
-    return _serializer.dumps(path)
+    window = int(time.time() // MEDIA_URL_ROTATION_SECONDS)
+    return _sign_media_for_window(path, window)
 
 
 def unsign_media(token: str, max_age: int = 3600) -> str | None:
