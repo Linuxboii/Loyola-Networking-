@@ -4,6 +4,7 @@ import 'package:loyola_networking/core/format.dart';
 import 'package:loyola_networking/core/updater.dart';
 import 'package:loyola_networking/models/models.dart';
 import 'package:loyola_networking/widgets/common.dart';
+import 'package:loyola_networking/widgets/collaborator_card.dart';
 
 void main() {
   group('formatting', () {
@@ -141,5 +142,50 @@ void main() {
       const MaterialApp(home: Scaffold(body: TierBadge(tier: 'Trusted'))),
     );
     expect(find.text('Trusted'), findsOneWidget);
+  });
+
+  testWidgets('collaborator sheet explains serious contribution paths',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: CollaboratorCard(onOpen: (_) async => true),
+      ),
+    ));
+
+    await tester.tap(find.text('Become a collaborator'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Build Loyola Networking with us'), findsOneWidget);
+    expect(find.textContaining('Flutter'), findsOneWidget);
+    expect(find.textContaining('student data'), findsOneWidget);
+    expect(find.text('View GitHub repository'), findsOneWidget);
+    expect(find.text('Contact Sushanth'), findsOneWidget);
+  });
+
+  testWidgets('collaborator actions open the repository and contact email',
+      (tester) async {
+    final opened = <Uri>[];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: CollaboratorCard(onOpen: (uri) async {
+          opened.add(uri);
+          return true;
+        }),
+      ),
+    ));
+
+    await tester.tap(find.text('Become a collaborator'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('View GitHub repository'));
+    await tester.pumpAndSettle();
+    expect(opened.single.toString(),
+        'https://github.com/Linuxboii/Loyola-Networking-');
+
+    await tester.tap(find.text('Become a collaborator'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Contact Sushanth'));
+    await tester.pumpAndSettle();
+    expect(opened.last.scheme, 'mailto');
+    expect(opened.last.path, 'ksushanth477@gmail.com');
   });
 }

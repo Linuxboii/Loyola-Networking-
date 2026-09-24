@@ -9,6 +9,7 @@ import '../core/theme_controller.dart';
 import '../core/updater.dart';
 import '../data/repository.dart';
 import '../widgets/common.dart';
+import '../widgets/collaborator_card.dart';
 import '../widgets/update_prompt.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -320,6 +321,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Loyola Networking'),
             subtitle: Text(_versionLabel),
           ),
+          const CollaboratorCard(),
           if (Updater.supported)
             ListTile(
               leading: const Icon(Icons.system_update_rounded),
